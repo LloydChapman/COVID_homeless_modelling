@@ -2,7 +2,7 @@
 # Title: Comparison of public health strategies to reduce COVID-19 in homeless populations across the United States 
 # Code author: Lloyd Chapman, Nathan C Lo, MD PhD (UCSF)
 # Origin date: 4/21/20
-# Last updated: 5/19/20
+# Last updated: 5/28/20
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # Study background  
 # 
@@ -43,7 +43,7 @@ COVID_homeless_model<-function(beta,CCMS_data,SF_case_data){
 #   11- Hx positive Ab (serology): 0- no; 1- yes
 #   12- True new infection
 
-N_res <- 255 # CCMS_data$Total_Census[1]
+N_res <- 350 # Set such that ~255 unique individuals are present in shelter at some point between 3/29 and 4/10  # CCMS_data$Total_Census[1]
 N_staff <- 65
 N_pop <- N_res + N_staff
 start_date <- min(CCMS_data$Date)
@@ -52,6 +52,7 @@ T_sim <- as.integer(end_date - start_date + 1) #13 # testing 5 days after 1st ca
 
 # Backfill CCMS data with assumed population of 255 prior to Mar 29 and same proportions in different risk categories as on Mar 29
 v <- round(N_res*CCMS_data[1,2:ncol(CCMS_data)]/CCMS_data[1,2],0)
+# v <- CCMS_data[1,2:ncol(CCMS_data)] + c(N_res-CCMS_data$Total_Census[1],10,5,3,10+5+3,N_res-CCMS_data$Total_Census[1]-10-5-3)
 # CCMS_data0 <- cbind(Date=CCMS_data$Date[1] - seq(T_sim-nrow(CCMS_data)+1,1,by=-1),data.frame(v[rep(1,T_sim-nrow(CCMS_data)+1),]))
 # CCMS_data <- rbind(CCMS_data0,CCMS_data)
 
@@ -66,30 +67,33 @@ CCMS_data[is.na(CCMS_data)] <- 0
 # p <-  # breathing rate
 # beta <- 0.004 #q*p/Q # transmission rate constant
 h <- 0.55 # relative infectiousness of asymptomatic individuals (individuals with mild symptoms) from Li Science 2020
-mean_daily_cases <- mean(SF_case_data$Case.Count[SF_case_data$Date>=start_date & SF_case_data$Date<=end_date]) # mean of confirmed cases for period of interest
-mean_daily_inc <- mean_daily_cases/881549 # population estimate from US Census Bureau [https://www.census.gov/quickfacts/sanfranciscocountycalifornia]
-epsilon <- 0.001 # mean_daily_inc/0.14 # transmission rate outside shelter assuming 1/0.14=7.1x as many infections as confirmed cases from Li Science 2020 - [ ] consider making this time-dependent
 mu_E <- 3 #5 # mean of negative-binomially-distributed latent period - REDUCED TO 3 DAYS TO ACCOUNT FOR INCLUSION OF PRE-SYMPTOMATIC INFECTIOUS STATE WITH MEAN OF 2.3 DAYS 
 r_E <- 4 # shape parameter of negative-binomially-distributed latent period
 p_E <- r_E/(r_E+mu_E-1) # 'success' probability of negative-binomially-distributed latent period
 # p_s <- 0.2 # probability of developing severe symptoms - [ ] look up age-dependence and check this is representative for a homeless shelter
 
 # Vector of probabilities of developing severe symptoms by age group and co-morbidity status (rows: 1- under-60 & no co-morbidities, 2- 60+ & no co-morbidities, 3- under-60 & co-morbidities, 4- 60+ & co-morbidities)
-p_s <- c((35*0.03 + 10*0.12)/45,(10*0.12+15*0.35)/25,(35*0.06 + 10*0.25)/45,(10*0.25+15*0.76)/25) # Values from Tuite CMAJ 2020 for 15+'s only as only adults in shelter  - [] UPDATE to finer-grained values from supp. mat. 
+# p_s <- c((35*0.03 + 10*0.12)/45,(10*0.12+15*0.35)/25,(35*0.06 + 10*0.25)/45,(10*0.25+15*0.76)/25) # Values from Tuite CMAJ 2020 for 15+'s only as only adults in shelter  - [] UPDATE to finer-grained values from supp. mat. 
+p_s <- c((0.37+0.42+0.51+0.59)/4,(10*0.72+20*0.76)/30,(0.37+0.42+0.51+0.59)/4,(10*0.72+20*0.76)/30) # Values from Davies medRxiv 2020 - no co-morbidity dependence as no information on this in paper
 
 # Vector of probabilities of hospitalisation by age-group and co-morbidity status for severe cases (rows: 1- under-60 & no co-morbidities, 2- 60+ & no co-morbidities, 3- under-60 & co-morbidities, 4- 60+ & co-morbidities)
-p_h <- c((0.008+0.01+0.019+0.054)/4,(0.151+0.333+0.618)/3,(0.008+0.01+0.019+0.054)/4,(0.151+0.333+0.618)/3) # Values from Davies medRxiv 2020 - no co-morbidity dependence as no information on this
+# p_h <- c((0.008+0.01+0.019+0.054)/4,(0.151+0.333+0.618)/3,(0.008+0.01+0.019+0.054)/4,(0.151+0.333+0.618)/3) # Values from Davies medRxiv 2020 - no co-morbidity dependence as no information on this
+p_h <- c((0.021+0.025+0.035+0.077)/4,(0.159+0.262+0.446)/3,(0.044+0.054+0.075+0.165)/4,(0.340+0.561+0.954)/3) # Values from Tuite CMAJ 2020
 
 mu_p <- 2.3 # mean of negative binomial presymptomatic period
 r_p <- 4 # shape parameter of negative-binomially-distributed presymptomatic period
 p_p <- r_p/(r_p+mu_p-1) # 'success' probability of negative-binomially-distributed presymptomatic period
-mu_sx <- 7 # mean of negative-binomially-distributed duration of symptoms - perhaps a bit long?
+mu_sx <- 8 # mean of negative-binomially-distributed duration of symptoms
 r_sx <- 4 # shape parameter of negative-binomially-distributed duration of symptoms
 p_sx <- r_sx/(r_sx+mu_sx-1) # 'success' probability of negative-binomially-distributed duration of symptoms
 mean_days_PCR_pos <- 20 # mean duration of PCR positivity following symptom onset based on viral shedding dynamics papers
 # r_PCR_pos <- 10 # shape parameter of negative-binomially-distributed duration of PCR positivity - [ ] just guessed ATM, should be taken from viral shedding dynamics papers
 # p_PCR_pos <- r_PCR_pos/(r_PCR_pos+mean_days_PCR_pos-1)
 days_PCR_pos_presx <- 2 # duration of PCR positivity prior to symptom onset
+
+mean_daily_cases <- mean(SF_case_data$Case.Count[SF_case_data$Date>=start_date & SF_case_data$Date<=end_date]) # mean of confirmed cases for period of interest
+mean_daily_inc <- mean_daily_cases/881549 # population estimate from US Census Bureau [https://www.census.gov/quickfacts/sanfranciscocountycalifornia]
+epsilon <- (62/2959)/mean_days_PCR_pos * 2 # overall PCR positive prevalence from Mission study x relative risk factor of 2 for homeless individuals #0.001 # mean_daily_inc/0.14 # transmission rate outside shelter assuming 1/0.14=7.1x as many infections as confirmed cases from Li Science 2020 - [ ] consider making this time-dependent
 
 quaran_period <- 14+1
 hospitalisation <- F # flag for whether hospitalisation was recorded - not available yet for MSC outbreak
@@ -101,14 +105,18 @@ N_staff_cohorts <- 3
 # Construct discrete distribution for duration of PCR positivity from reversed log-normal distribution
 # x <- 1:40
 # plot(x,dtrunc(x-1,"nbinom",a=0,b=20,size=r_PCR_pos,prob=p_PCR_pos),xlab="Duration of PCR positivity (days)",ylab="Prob",)
-max_days_PCR_pos <- 25
-discrlnorm <- discretize(plnorm(x,log(max_days_PCR_pos-mean_days_PCR_pos+1),log(2)), from = 0, to = max_days_PCR_pos, step = 1, method = "unbiased" , lev = levlnorm(x,log(max_days_PCR_pos-mean_days_PCR_pos+1),log(2)))
-# plot(0:max_days_PCR_pos,discrlnorm)
-revdiscrlnorm <- rev(discrlnorm[1:(length(discrlnorm)-1)])
-revdiscrlnorm <- revdiscrlnorm/sum(revdiscrlnorm) # normalise
-# pdf("viraemia_duration_distn.pdf",width = 5,height = 4)
-# plot(1:max_days_PCR_pos,revdiscrlnorm,xlab = "Duration of viraemia following symptom onset (days)", ylab = "Prob",pch=19) #, main = "Distribution of duration of viraemia")
-# dev.off()
+min_days_PCR_pos <- 5 # He Nat Med 2020, Xiao Jrnl Clin Vir 2020
+max_days_PCR_pos <- 37 # Zhou Lancet 2020 #25
+# discrlnorm <- discretize(plnorm(x,log(max_days_PCR_pos-mean_days_PCR_pos+1),log(2)), from = 0, to = max_days_PCR_pos, step = 1, method = "unbiased" , lev = levlnorm(x,log(max_days_PCR_pos-mean_days_PCR_pos+1),log(2)))
+discrnorm <- discretize(pnorm(x,mean_days_PCR_pos,5), from = min_days_PCR_pos-0.5, to = max_days_PCR_pos+0.5, step = 1, method = "rounding")
+discrnorm <- discrnorm/sum(discrnorm) # normalise
+# plot(min_days_PCR_pos:max_days_PCR_pos,discrnorm)
+# # plot(0:max_days_PCR_pos,discrlnorm)
+# revdiscrlnorm <- rev(discrlnorm[1:(length(discrlnorm)-1)])
+# revdiscrlnorm <- revdiscrlnorm/sum(revdiscrlnorm) # normalise
+# # pdf("viraemia_duration_distn.pdf",width = 5,height = 4)
+# # plot(1:max_days_PCR_pos,revdiscrlnorm,xlab = "Duration of viraemia following symptom onset (days)", ylab = "Prob",pch=19) #, main = "Distribution of duration of viraemia")
+# # dev.off()
 
 # Intervention parameters
 mask_on <- 1
@@ -134,23 +142,14 @@ PCRpos_sx_testing <- rep(0,length(sx_testing_days))
 FNR <- read.csv("../Data/digitised_sens_graph.csv",header = F, stringsAsFactors = F)
 x <- round(FNR[(round(mu_E)+1):nrow(FNR),1],0)-round(mu_E)
 y <- 1 - FNR[(round(mu_E)+1):nrow(FNR),2]
-fit <- lm(y ~ bs(x,knots = c(3,4,6,7,10,15,17)-round(mu_E)))
+fit <- lm(y ~ bs(x,knots = c(3,4,6,7,10,15,16)-round(mu_E)))
+fit_extrap <- approxExtrap(x,y,(x[length(x)]+1):max_days_PCR_pos)
 
-sens <- function(x,fit,max_days_PCR_pos){
-  # res <- rep(1,length(x))
-  # res <- rep(0.75,length(x))
-  res <- rep(0,length(x))
-  idx <- (x<=max_days_PCR_pos)
-  if (any(idx)){
-    res[idx] <- suppressWarnings(predict(fit,data.frame(x=x[idx])))
-  }
-  return(res)
-}
 # # Plot PCR sensitivity curve
 # pdf("PCR_sens_vs_time_since_presx_infctsnss.pdf",width = 5,height = 4)
-# xx <- seq(0,25,length.out = 100)
-# plot(x,y,pch=19,xlim = c(0,25), ylim = c(0,max(y)), xlab = "Days since start of presymptomatic infectiousness", ylab = "PCR sensitivity")
-# lines(xx, sens(xx,fit,max_days_PCR_pos), col="red")
+# xx <- seq(0,max_days_PCR_pos)
+# plot(x,y,pch=19,xlim = c(0,max_days_PCR_pos), ylim = c(0,max(y)), xlab = "Days since start of presymptomatic infectiousness", ylab = "PCR sensitivity")
+# lines(xx, sens(xx,fit,fit_extrap,max_days_PCR_pos), col="red")
 # dev.off()
 
 # # Symptom screeening test diagnostics 
@@ -214,10 +213,10 @@ Age[Risk %in% c(2,4)] <- sample(x=seq(60,69), size=sum(Risk %in% c(2,4)), replac
 TrueState <- rep(1,N_pop)
 # "Index" cases:
 # 1st case with sx onset on 3/31
-i_s_p0 <- sample(1:N_res,1) # draw at random from residents
+i_s_p0 <- sample(res_present0,1) # draw at random from residents who are present
 TrueState[i_s_p0] <- 4 # assume initially in severe presymptomatic state
 # 2nd case with sx onset on 4/2, assume initially in exposed state
-e0 <- sample(setdiff(1:N_res,i_s_p0),1) # draw at random from remaining residents
+e0 <- sample(setdiff(res_present0,i_s_p0),1) # draw at random from remaining residents who are present
 e0ind <- rep(F,N_pop)
 e0ind[e0] <- T
 TrueState[e0] <- 2 # assume initially in latent state
@@ -232,7 +231,7 @@ DaysSinceInfctn[e0] <- DayTrueState[e0]
 DaysSinceInfctsnss <- rep(NA,N_pop) # days since start of infectiousness (i.e. start of presymptomatic infectious stage)
 DaysSinceInfctsnss[i_s_p0] <- 0
 DaysPCRpos <- rep(NA,N_pop) # duration of PCR positivity (viraemia)
-# DaysPCRpos[i_s_p0] <- sample(1:max_days_PCR_pos,length(i_s_p0),prob=revdiscrlnorm,replace=T)
+# DaysPCRpos[i_s_p0] <- sample(1:max_days_PCR_pos,length(i_s_p0),prob=discrnorm,replace=T)
 Hospitalised <- rep(NA,N_pop)
 ObsState <- rep(1,N_pop)
 DayObsState <- rep(0,N_pop)
@@ -259,7 +258,7 @@ w <- c(rep(1,N_res),rep(1/2,N_staff))
 new_infections <- rep(0,T_sim)
 state <- matrix(NA, nrow = N_pop, ncol = T_sim)
 state[,1] <- TrueState
-presence <- matrix(NA, nrow = N_pop, ncol = T_sim)
+presence <- matrix(F, nrow = N_pop, ncol = T_sim)
 presence[,1] <- Present
 
 # Set marker for whether there were any individuals with severe symptoms on days individuals with clinical symptoms were tested to false
@@ -347,7 +346,7 @@ for (t in 2:T_sim) {
   TrueState[s2e] <- 2 # Update true state based on transmission/natural history
   DayTrueState[s2e] <- 0 # Re-set day in true state
   WaitingTime[s2e] <- rnbinom(sum(s2e),r_E,p_E) + 1 # Draw latent periods
-  # DaysPCRpos[s2e] <- WaitingTime[s2e] + sample(1:max_days_PCR_pos,sum(s2e),prob=revdiscrlnorm,replace=T)
+  # DaysPCRpos[s2e] <- WaitingTime[s2e] + sample(1:max_days_PCR_pos,sum(s2e),prob=discrnorm,replace=T)
   DaysSinceInfctn[s2e] <- 0
     
   # Step 2: E -> I_m_p, I_s_p (progression to presymptomatic infectious stage)
@@ -374,7 +373,7 @@ for (t in 2:T_sim) {
   DayTrueState[i_p2i_sx] <- 0 # Re-set day in true state
   NewInfection[i_p2i_sx] <- 1 # Count new infections 
   WaitingTime[i_p2i_sx] <- rnbinom(sum(i_p2i_sx),r_sx,p_sx) + 1
-  DaysPCRpos[i_p2i_sx] <- sample(1:max_days_PCR_pos,sum(i_p2i_sx),prob=revdiscrlnorm,replace=T)
+  DaysPCRpos[i_p2i_sx] <- sample(min_days_PCR_pos:max_days_PCR_pos,sum(i_p2i_sx),prob=discrnorm,replace=T)
   
   if (hospitalisation){
     for (j in 1:4){
@@ -438,25 +437,12 @@ for (t in 2:T_sim) {
   #   Present[Hi_Risk_add3] <- T
   # }
   
-  update_present <- function(Present,HxPCR,ind,x,y){
-    if (y<x){
-      Numbers_rm <- sample(which(ind & Present),x-y)  
-      Present[Numbers_rm] <- F
-    } else if (y>x){
-      # print(x)
-      # print(y)
-      Numbers_add <- sample(which(ind & !Present & !HxPCR),y-x) # individuals that have tested PCR positive cannot return to shelter
-      Present[Numbers_add] <- T
-    }
-    return(Present)
-  }
-  
   # if (any_i_s_sx1){
     Present[c(sx_indvdls_removed,PCRpos_removed)] <- F # All symptomatic individuals who tested PCR positive on the previous day are removed
-    Present[1:N_res] <- update_present(Present[1:N_res],HxPCR[1:N_res],Risk[1:N_res]==1,CCMS_data$Total_Low_Risk[t-1] - sum(Risk[c(sx_indvdls_removed[sx_indvdls_removed<=N_res],PCRpos_removed[PCRpos_removed<=N_res])]==1),CCMS_data$Total_Low_Risk[t])
-    Present[1:N_res] <- update_present(Present[1:N_res],HxPCR[1:N_res],Risk[1:N_res]==2,CCMS_data$Hi_Risk_60_only[t-1] - sum(Risk[c(sx_indvdls_removed[sx_indvdls_removed<=N_res],PCRpos_removed[PCRpos_removed<=N_res])]==2),CCMS_data$Hi_Risk_60_only[t])
-    Present[1:N_res] <- update_present(Present[1:N_res],HxPCR[1:N_res],Risk[1:N_res]==3,CCMS_data$Hi_Risk_Dx_only[t-1] - sum(Risk[c(sx_indvdls_removed[sx_indvdls_removed<=N_res],PCRpos_removed[PCRpos_removed<=N_res])]==3),CCMS_data$Hi_Risk_Dx_only[t])
-    Present[1:N_res] <- update_present(Present[1:N_res],HxPCR[1:N_res],Risk[1:N_res]==4,CCMS_data$Hi_Risk_Both_Age_Dx[t-1] - sum(Risk[c(sx_indvdls_removed[sx_indvdls_removed<=N_res],PCRpos_removed[PCRpos_removed<=N_res])]==4),CCMS_data$Hi_Risk_Both_Age_Dx[t])    
+    list[Present[1:N_res]] <- update_present(Present[1:N_res],HxPCR[1:N_res],Risk[1:N_res]==1,CCMS_data$Total_Low_Risk[t-1] - sum(Risk[c(sx_indvdls_removed[sx_indvdls_removed<=N_res],PCRpos_removed[PCRpos_removed<=N_res])]==1),CCMS_data$Total_Low_Risk[t])
+    list[Present[1:N_res]] <- update_present(Present[1:N_res],HxPCR[1:N_res],Risk[1:N_res]==2,CCMS_data$Hi_Risk_60_only[t-1] - sum(Risk[c(sx_indvdls_removed[sx_indvdls_removed<=N_res],PCRpos_removed[PCRpos_removed<=N_res])]==2),CCMS_data$Hi_Risk_60_only[t])
+    list[Present[1:N_res]] <- update_present(Present[1:N_res],HxPCR[1:N_res],Risk[1:N_res]==3,CCMS_data$Hi_Risk_Dx_only[t-1] - sum(Risk[c(sx_indvdls_removed[sx_indvdls_removed<=N_res],PCRpos_removed[PCRpos_removed<=N_res])]==3),CCMS_data$Hi_Risk_Dx_only[t])
+    list[Present[1:N_res]] <- update_present(Present[1:N_res],HxPCR[1:N_res],Risk[1:N_res]==4,CCMS_data$Hi_Risk_Both_Age_Dx[t-1] - sum(Risk[c(sx_indvdls_removed[sx_indvdls_removed<=N_res],PCRpos_removed[PCRpos_removed<=N_res])]==4),CCMS_data$Hi_Risk_Both_Age_Dx[t])    
   # } else {
   #   Present[1:N_res] <- update_present(Present[1:N_res],Risk[1:N_res]==1,CCMS_data$Total_Low_Risk[t-1],CCMS_data$Total_Low_Risk[t])
   #   Present[1:N_res] <- update_present(Present[1:N_res],Risk[1:N_res]==2,CCMS_data$Hi_Risk_60_only[t-1],CCMS_data$Hi_Risk_60_only[t])
@@ -466,8 +452,9 @@ for (t in 2:T_sim) {
 
   presence[,t] <- Present
   print(c(sx_indvdls_removed,PCRpos_removed))
-  print(sum(Present[1:N_res]))
-  print(summary(as.factor(Risk[Resident==1 & Present])))
+  # print(sum(Present[1:N_res]))
+  # print(summary(as.factor(Risk[Resident==1 & Present])))
+  # print(summary(as.factor(Risk[Resident==1 & !Present])))
   
   # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
   # ALGORITHM 3: DETECTION # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -495,7 +482,7 @@ for (t in 2:T_sim) {
     Tested[i_s_sx1] <- 1 # All individuals with severe symptoms on these days tested
     if (any(i_s_sx1)){ # Some individuals with severe symptoms on testing day
       any_i_s_sx1 <- T 
-      ni2i <- (DayTrueState[i_s_sx1]<=DaysPCRpos[i_s_sx1] & runif(sum(i_s_sx1))<sens(DaysSinceInfctsnss[i_s_sx1],fit,max_days_PCR_pos)) # Time since sx onset < duration of PCR positivity (viraemia) and test is positive
+      ni2i <- (DayTrueState[i_s_sx1]<=DaysPCRpos[i_s_sx1] & runif(sum(i_s_sx1))<sens(DaysSinceInfctsnss[i_s_sx1],fit,fit_extrap,max_days_PCR_pos)) # Time since sx onset < duration of PCR positivity (viraemia) and test is positive
       ObsState[i_s_sx1] <- 1 + ni2i # Update observed data if tested positive
       sx_indvdls_removed <- which(i_s_sx1)[ni2i] # PCR positive individuals with severe symptoms to be removed the next day
       DayObsState[sx_indvdls_removed] <- 0 # Re-set day in observed state
@@ -564,11 +551,11 @@ for (t in 2:T_sim) {
     # Testing of TRUE presx infectious mild
     i_m_p1 <- ((TrueState==3) & (ObsState==1) & (Number %in% indvdls_tested))
     # ni2i <- (DayTrueState[i_m_p1]>=WaitingTime[i_m_p1]-days_PCR_pos_presx)
-    # ni2i <- (DaysSinceInfctn[i_m_p1]<=DaysPCRpos[i_m_p1] & runif(sum(i_m_p1))<sens(DaysSinceInfctn[i_m_p1],fit,max_days_PCR_pos)) # Still PCR positive (viraemic) and test is positive
+    # ni2i <- (DaysSinceInfctn[i_m_p1]<=DaysPCRpos[i_m_p1] & runif(sum(i_m_p1))<sens(DaysSinceInfctn[i_m_p1],fit,fit_extrap,max_days_PCR_pos)) # Still PCR positive (viraemic) and test is positive
     # print(DaysSinceInfctn[i_m_p1])
     if (any(i_m_p1)){
-      # ni2i <- (runif(sum(i_m_p1))<sens(DaysSinceInfctn[i_m_p1],fit,max_days_PCR_pos)) # Infected and test is positive
-      ni2i <- (runif(sum(i_m_p1))<sens(DaysSinceInfctsnss[i_m_p1],fit,max_days_PCR_pos)) # Infected and test is positive
+      # ni2i <- (runif(sum(i_m_p1))<sens(DaysSinceInfctn[i_m_p1],fit,fit_extrap,max_days_PCR_pos)) # Infected and test is positive
+      ni2i <- (runif(sum(i_m_p1))<sens(DaysSinceInfctsnss[i_m_p1],fit,fit_extrap,max_days_PCR_pos)) # Infected and test is positive
       ObsState[i_m_p1] <- 1 + ni2i # Update observed data if tested positive
       DayObsState[i_m_p1][ni2i] <- 0 # Re-set day in observed state
       HxPCR[i_m_p1][ni2i] <- 1 # Assign yes for hx positive PCR
@@ -584,7 +571,7 @@ for (t in 2:T_sim) {
     # print(DaysSinceInfctn[i_s_p1])
     if (any(i_s_p1)){
       # ni2i <- (runif(sum(i_s_p1))<sens(DaysSinceInfctn[i_s_p1],fit,max_days_PCR_pos)) # Infected and test is positive
-      ni2i <- (runif(sum(i_s_p1))<sens(DaysSinceInfctsnss[i_s_p1],fit,max_days_PCR_pos)) # Infected and test is positive
+      ni2i <- (runif(sum(i_s_p1))<sens(DaysSinceInfctsnss[i_s_p1],fit,fit_extrap,max_days_PCR_pos)) # Infected and test is positive
       ObsState[i_s_p1] <- 1 + ni2i # Update observed data if tested positive
       DayObsState[i_s_p1][ni2i] <- 0 # Re-set day in observed state
       HxPCR[i_s_p1][ni2i] <- 1 # Assign yes for hx positive PCR
@@ -596,11 +583,11 @@ for (t in 2:T_sim) {
     # Testing of TRUE sx infectious mild
     i_m_sx1 <- ((TrueState==5) & (ObsState==1) & (Number %in% indvdls_tested))
     # ni2i <- (DaysPCRpos[i_m_sx1]>=DayTrueState[i_m_sx1]) # Test assumed positive if duration of PCR positivity > time since sx onset
-    # ni2i <- (DaysSinceInfctn[i_m_sx1]<=DaysPCRpos[i_m_sx1] & runif(sum(i_m_sx1))<sens(DaysSinceInfctn[i_m_sx1],fit,max_days_PCR_pos)) 
+    # ni2i <- (DaysSinceInfctn[i_m_sx1]<=DaysPCRpos[i_m_sx1] & runif(sum(i_m_sx1))<sens(DaysSinceInfctn[i_m_sx1],fit,fit_extrap,max_days_PCR_pos)) 
     # print(DaysSinceInfctn[i_m_sx1])
     if (any(i_m_sx1)){
-      # ni2i <- (DayTrueState[i_m_sx1]<=DaysPCRpos[i_m_sx1] & runif(sum(i_m_sx1))<sens(DaysSinceInfctn[i_m_sx1],fit,max_days_PCR_pos)) # Time since sx onset < duration of PCR positivity (viraemia) and test is positive
-      ni2i <- (DayTrueState[i_m_sx1]<=DaysPCRpos[i_m_sx1] & runif(sum(i_m_sx1))<sens(DaysSinceInfctsnss[i_m_sx1],fit,max_days_PCR_pos)) # Time since sx onset < duration of PCR positivity (viraemia) and test is positive
+      # ni2i <- (DayTrueState[i_m_sx1]<=DaysPCRpos[i_m_sx1] & runif(sum(i_m_sx1))<sens(DaysSinceInfctn[i_m_sx1],fit,fit_extrap,max_days_PCR_pos)) # Time since sx onset < duration of PCR positivity (viraemia) and test is positive
+      ni2i <- (DayTrueState[i_m_sx1]<=DaysPCRpos[i_m_sx1] & runif(sum(i_m_sx1))<sens(DaysSinceInfctsnss[i_m_sx1],fit,fit_extrap,max_days_PCR_pos)) # Time since sx onset < duration of PCR positivity (viraemia) and test is positive
       ObsState[i_m_sx1] <- 1 + ni2i # Update observed data if tested positive
       DayObsState[i_m_sx1][ni2i] <- 0 # Re-set day in observed state
       HxPCR[i_m_sx1][ni2i] <- 1 # Assign yes for hx positive PCR
@@ -612,11 +599,11 @@ for (t in 2:T_sim) {
     # Testing of TRUE sx infectious severe
     i_s_sx1 <- ((TrueState==6) & (ObsState==1) & (Number %in% indvdls_tested))
     # ni2i <- (DaysPCRpos[i_s_sx1]>=DayTrueState[i_s_sx1]) # Test assumed positive if duration of PCR positivity > time since sx onset
-    # ni2i <- (DaysSinceInfctn[i_s_sx1]<=DaysPCRpos[i_s_sx1] & runif(sum(i_s_sx1))<sens(DaysSinceInfctn[i_s_sx1],fit,max_days_PCR_pos)) 
+    # ni2i <- (DaysSinceInfctn[i_s_sx1]<=DaysPCRpos[i_s_sx1] & runif(sum(i_s_sx1))<sens(DaysSinceInfctn[i_s_sx1],fit,fit_extrap,max_days_PCR_pos)) 
     # print(DaysSinceInfctn[i_s_sx1])
     if (any(i_s_sx1)){
-      # ni2i <- (DayTrueState[i_s_sx1]<=DaysPCRpos[i_s_sx1] & runif(sum(i_s_sx1))<sens(DaysSinceInfctn[i_s_sx1],fit,max_days_PCR_pos)) # Time since sx onset < duration of PCR positivity (viraemia) and test is positive
-      ni2i <- (DayTrueState[i_s_sx1]<=DaysPCRpos[i_s_sx1] & runif(sum(i_s_sx1))<sens(DaysSinceInfctsnss[i_s_sx1],fit,max_days_PCR_pos)) # Time since sx onset < duration of PCR positivity (viraemia) and test is positive
+      # ni2i <- (DayTrueState[i_s_sx1]<=DaysPCRpos[i_s_sx1] & runif(sum(i_s_sx1))<sens(DaysSinceInfctn[i_s_sx1],fit,fit_extrap,max_days_PCR_pos)) # Time since sx onset < duration of PCR positivity (viraemia) and test is positive
+      ni2i <- (DayTrueState[i_s_sx1]<=DaysPCRpos[i_s_sx1] & runif(sum(i_s_sx1))<sens(DaysSinceInfctsnss[i_s_sx1],fit,fit_extrap,max_days_PCR_pos)) # Time since sx onset < duration of PCR positivity (viraemia) and test is positive
       ObsState[i_s_sx1] <- 1 + ni2i # Update observed data if tested positive
       DayObsState[i_s_sx1][ni2i] <- 0 # Re-set day in observed state
       HxPCR[i_s_sx1][ni2i] <- 1 # Assign yes for hx positive PCR
@@ -628,11 +615,11 @@ for (t in 2:T_sim) {
     # Testing of TRUE recovered
     r1 <- ((TrueState==7) & (ObsState==1) & (Number %in% indvdls_tested))
     # ni2i <- (DaysPCRpos[r1]>=WaitingTime[r1]+DayTrueState[r1]) # Test assumed positive if duration of PCR positivity is > time since sx onset = waiting time in sx state + time in recovered state
-    # ni2i <- (DaysSinceInfctn[r1]<=DaysPCRpos[r1] & runif(sum(r1))<sens(DaysSinceInfctn[r1],fit,max_days_PCR_pos))
+    # ni2i <- (DaysSinceInfctn[r1]<=DaysPCRpos[r1] & runif(sum(r1))<sens(DaysSinceInfctn[r1],fit,fit_extrap,max_days_PCR_pos))
     # print(DaysSinceInfctn[r1])
     if (any(r1)){
-      # ni2i <- (WaitingTime[r1]+DayTrueState[r1]<=DaysPCRpos[r1] & runif(sum(r1))<sens(DaysSinceInfctn[r1],fit,max_days_PCR_pos)) # Time since sx onset = waiting time in sx state + time in recovered state < duration of PCR positivity and test is positive 
-      ni2i <- (WaitingTime[r1]+DayTrueState[r1]<=DaysPCRpos[r1] & runif(sum(r1))<sens(DaysSinceInfctsnss[r1],fit,max_days_PCR_pos)) # Time since sx onset = waiting time in sx state + time in recovered state < duration of PCR positivity and test is positive 
+      # ni2i <- (WaitingTime[r1]+DayTrueState[r1]<=DaysPCRpos[r1] & runif(sum(r1))<sens(DaysSinceInfctn[r1],fit,fit_extrap,max_days_PCR_pos)) # Time since sx onset = waiting time in sx state + time in recovered state < duration of PCR positivity and test is positive 
+      ni2i <- (WaitingTime[r1]+DayTrueState[r1]<=DaysPCRpos[r1] & runif(sum(r1))<sens(DaysSinceInfctsnss[r1],fit,fit_extrap,max_days_PCR_pos)) # Time since sx onset = waiting time in sx state + time in recovered state < duration of PCR positivity and test is positive 
       ObsState[r1] <- 1 + ni2i
       DayObsState[r1][ni2i] <- 0 # Re-set day in observed state
       HxPCR[r1][ni2i] <- 1 # Assign yes for hx positive PCR  

@@ -4,10 +4,13 @@ library(actuar)
 library(splines)
 library(ggplot2)
 library(reshape2)
+library(Hmisc)
+library(gsubfn)
 
 setwd("~/Dropbox/Homeless/Code") 
 source("ABC_SMC_MNN_functions.R")
 source("COVID_homeless_calibration2.R")
+source("COVID_homeless_functions.R")
 
 # Load CCMS data from MSC South outbreak
 CCMS_data <- read.csv("../Data/CCMS_data.csv",stringsAsFactors = F)
@@ -25,7 +28,7 @@ SF_data <- SF_data[!(SF_data$Case.Disposition=="Death"),]
 SF_case_data <- aggregate(Case.Count ~ Date,SF_data,sum)
 
 T_sim <- 13
-N_pop <- 320
+N_pop <- 415
 
 # sim_data <- read.csv("sim_data.csv")
 # 
@@ -39,13 +42,13 @@ D_T <- c(29,33) #70 - sum(D_S) # number of positives out of 134 tested during ma
 N_tested <- rep((144-10)/2,2)
 
 # Number of particles
-N <- 200
+N <- 1000
 
 # Number of neighbours for covariance matrix calculations
 M <- 50
 
 # Epsilon tolerance values for number PCR positive in early testing of symptomatics
-epsilon_S <- round(seq(sqrt(sum((2*D_S)^2)),sqrt(sum((0.2*D_S)^2)),length.out = 10))
+epsilon_S <- round(seq(sqrt(sum((2*D_S)^2)),sqrt(sum((0.3*D_S)^2)),length.out = 10))
 
 # Epsilon tolerance values for number PCR positive in mass testing
 CI1 <- binom.test(D_T[1],N_tested[1])$conf.int
@@ -83,10 +86,15 @@ PCRpos_mat <- matrix(nrow=N,ncol=length(D_T)) # number PCR positive in mass test
 state_arr <- array(dim=c(N_pop,T_sim,N)) # states of individuals over time
 sim_pop_list <- vector("list",N) # individual-level information from end of simulation
 
+# Empty vector for storing acceptance rates
+acc_rate <- numeric(G)
+
 for(g in 1:G){  
 
-	#Initiate counter
-	i <- 1	
+	#Initiate counter of accepted particles
+	i <- 1
+	# Initiate counter of proposed particles
+	k <- 1
 	while(i <= N){ # While the number of accepted particles is less than N
    		if(g==1){
     	# Sample from prior distribution
@@ -109,7 +117,7 @@ for(g in 1:G){
     				D_T_star <- res$PCRpos
     				# Calculate distances 
     				distance[j,] <- calc_distance(D_S,D_S_Star,D_T,D_T_star) # [ ] - UPDATE to save this in output
-    				if((distance[j,1] <= epsilon_S[g]) & (distance[j,2] <= epsilon_T[g])){ # If distances is less than tolerance
+    				if((distance[j,1] <= epsilon_S[g]) & (distance[j,2] <= epsilon_T[g])){ # If distances are less than tolerance
     					m <- m+1
     				}
     			}	
@@ -131,10 +139,12 @@ for(g in 1:G){
 				}
       			w.new[i] <- (m/n)*w1/w2
       			print(paste0('Generation: ', g, ", particle: ", i))
-      			# Update counter
+      			# Update counter of accepted particles
       			i <- i+1
       			}
-    		} 
+      	}
+	  # Update counter of proposed particles
+	  k <- k+1
     	}
     	Sigma <- list(NA, N)
     for(p in 1:N){
@@ -142,71 +152,13 @@ for(g in 1:G){
     }
     	res.old <- res.new
 	w.old <- w.new/sum(w.new)
+	acc_rate[g] <- i/k
+  cat("Acceptance rate for ", g,"th generation = ", round(acc_rate[g],2), "\n", sep = "")
 
- 	write.csv(res.new, file = paste("results_ABC_SMC_MNN_gen_",g,"_7.csv",sep=""), row.names=FALSE)
+ 	write.csv(res.new, file = paste("results_ABC_SMC_MNN_gen_",g,"_9.csv",sep=""), row.names=FALSE)
 }
 
 # Calculate ESS
 ess <- ESS(w.old)
 
-save(new_infections_mat,PCRpos_sx_testing_mat,PCRpos_mat,state_arr,sim_pop_list,ess,file = "sim_output_7.RData")
-
-# Plot output
-pdf("beta_posterior_7.pdf",width = 5, height = 4)
-hist(res.new,breaks = 20,freq = F,xlab = "beta",main = "Posterior distribution of beta")
-dev.off()
-
-# pdf("num_PCRpos_vs_beta_7.pdf",width = 5,height = 5)
-# plot(res.new,PCRpos_mat,xlab = "beta",ylab = "No. PCR positive")
-# dev.off()
-
-pdf("onsets_vs_time_7.pdf",width = 6,height = 5)
-new_infections_melt <- melt(new_infections_mat)
-ggplot(new_infections_melt,aes(x=Var2,y=value,col=as.factor(Var1))) + geom_line() + xlab("Day") + ylab("No. of onsets") + theme(legend.position = "none")
-dev.off()
-
-# Reconstruct the number of PCR positive individuals over time from individual-level simulation data frame
-getEventTime <- function(state,i){apply(state,c(1,3),function(x) which(x %in% i)[1])}
-
-tE <- getEventTime(state_arr,2)
-tI_m_p <- getEventTime(state_arr,3)
-tI_s_p <- getEventTime(state_arr,4)
-tI_m_sx <- getEventTime(state_arr,5)
-tI_s_sx <- getEventTime(state_arr,6)
-tR <- getEventTime(state_arr,7)
-
-StartPresx <- pmin(tI_m_p,tI_s_p,na.rm = T)
-Onset <- pmin(tI_m_sx,tI_s_sx,na.rm = T)
-EndPCRpos <- matrix(nrow = nrow(Onset), ncol = ncol(Onset))
-for (i in 1:N){
-  EndPCRpos[,i] <- Onset[,i] + sim_pop_list[[i]]$DaysPCRpos
-}
-
-detectable_viral_load_mat <- matrix(nrow = N, ncol = T_sim)
-for (i in 1:T_sim){
-  detectable_viral_load_mat[,i] <- colSums(StartPresx<=i & EndPCRpos>i,na.rm = T)
-}
-
-detectable_viral_load_melt <- melt(detectable_viral_load_mat)
-pdf("num_detectabe_viral_load_vs_time_7.pdf",width = 5, height = 4)
-ggplot() + geom_line(aes(x=Var2,y=value,col=as.factor(Var1)),detectable_viral_load_melt) + geom_line(aes(x=day,y=PCRpos),data.frame(day=c(12,12),PCRpos=range(PCRpos_mat))) + geom_point(aes(x=12,y=D_T),col="black",size=2) + xlab("Day") + ylab("No. with detectable viral load") + theme(legend.position = "none")
-dev.off()
-
-testing_dates <- c(as.Date(c("4/4/2020","4/5/2020","4/6/2020","4/7/2020"),format="%m/%d/%Y"),as.Date(c("4/8/2020","4/9/2020"),format="%m/%d/%Y"))
-D <- c(D_S,D_T)
-PCRpos_mat1 <- data.frame(cbind(PCRpos_sx_testing_mat,PCRpos_mat))
-names(PCRpos_mat1) <- testing_dates
-PCRpos_mat1$sim <- row.names(PCRpos_mat1)
-PCRpos_melt1 <- melt(PCRpos_mat1,id.vars="sim")
-PCRpos_melt1$variable <- as.Date(PCRpos_melt1$variable)
-pdf("calibration_7.pdf",width = 6, height = 5)
-ggplot() + geom_line(aes(x=variable,y=value,group=as.factor(sim),col=as.factor(sim)),PCRpos_melt1) + geom_line(aes(x=date,y=PCRpos),data.frame(date=testing_dates,PCRpos=D),col="black") + geom_line(aes(x=date,y=CI),data.frame(date=rep(testing_dates[5],2),CI=c(D_T[1]-tol1,D_T[1]+tol1))) + geom_line(aes(x=date,y=CI),data.frame(date=rep(testing_dates[6],2),CI=c(D_T[2]-tol2,D_T[2]+tol2))) + xlab("Date") + ylab("No. PCR positive") + theme(legend.position = "none")
-dev.off()
-
-num_PCRpos_staff <- rep(0,length(sim_pop_list))
-for (i in 1:length(sim_pop_list)){
-  num_PCRpos_staff[i] <- sum(sim_pop_list[[i]]$HxPCR[sim_pop_list[[i]]$Resident==0],na.rm = T) 
-}
-pdf("num_PCRpos_staff_7.pdf",width = 5, height = 4)
-hist(num_PCRpos_staff,breaks=seq(min(num_PCRpos_staff)-0.5,max(num_PCRpos_staff)+0.5),xlab="No. PCR positive staff",main="Distribution of no. of PCR positive staff")
-dev.off()
+save(new_infections_mat,PCRpos_sx_testing_mat,PCRpos_mat,state_arr,sim_pop_list,ess,file = "sim_output_8.RData")
