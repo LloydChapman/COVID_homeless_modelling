@@ -31,5 +31,8 @@ min_days_PCR_pos <- 5 # He Nat Med 2020, Xiao Jrnl Clin Vir 2020
 max_days_PCR_pos <- 37 # Zhou Lancet 2020 #25
 discrnorm <- discretize(pnorm(x,mean_days_PCR_pos,5), from = min_days_PCR_pos-0.5, to = max_days_PCR_pos+0.5, step = 1, method = "rounding")
 discrnorm <- discrnorm/sum(discrnorm) # normalise
+# pdf("detectable_viral_load_duration_distn.pdf",width = 5,height = 4)
+# plot(min_days_PCR_pos:max_days_PCR_pos,discrnorm,xlab = "Duration of detectable viral load following start of infectiousness (days)", ylab = "Prob",pch=19) #, main = "Distribution of duration of detectable viral load")
+# dev.off()
 
 epsilon <- (62/2959)/mean_days_PCR_pos * 2 #0.001 # mean_daily_inc/0.14 # transmission rate outside shelter assuming 1/0.14=7.1x as many infections as confirmed cases from Li Science 2020 - [ ] consider making this time-dependent

@@ -105,7 +105,7 @@ iterate <- function(TrueState,Present,DayTrueState,DayObsState,DaysSinceInfctn,D
   }
   
   # Count number of new infections
-  infections <- sum(i_p2i_sx)
+  infections <- sum(s2e)
   
   # Count number of new clinical cases
   cases <- sum(i_p2i_sx & i_s_p)
