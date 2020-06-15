@@ -37,6 +37,9 @@ start_date <- min(CCMS_data$Date)
 end_date <- max(CCMS_data$Date)
 T_sim <- as.integer(end_date - start_date + 1) #13 # testing 5 days after 1st cases confirmed on 4/5 + 2 days presymptomatic infectiousness (assumed) + 6 days of symptoms of 1st case  # 30 # Days; Total of 1 month
 
+# Set weights for presence of residents and staff in shelter
+w <- c(rep(1,N_res),rep(1/2,N_staff))
+
 # Set natural history parameters
 source("set_nat_hist_pars.R")
 
@@ -180,7 +183,7 @@ for(g in 1:G){
     			m <- 0
     			distance <- matrix(nrow=n,ncol=2)
     			for(j in 1:n){
-    				res <- COVID_homeless_model(N_res,N_staff,N_pop,T_sim,beta_star,epsilon,r_E,p_E,p_s,h,r_p,p_p,alpha,r_sx,p_sx,
+    				res <- COVID_homeless_model(N_res,N_staff,N_pop,T_sim,w,beta_star,epsilon,r_E,p_E,p_s,h,r_p,p_p,alpha,r_sx,p_sx,
     				                            p_h,p_ICU,p_d,mean_days_PCR_pos,min_days_PCR_pos,max_days_PCR_pos,discrnorm,
     				                            hospitalisation,fit,fit_extrap,spec,testing_days,N_tested,sx_testing_days,
     				                            CCMS_data,Number,Alive,Resident,Present,Risk,Age,TrueState,DayTrueState,

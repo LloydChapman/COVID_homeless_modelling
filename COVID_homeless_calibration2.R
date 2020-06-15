@@ -14,7 +14,7 @@
 # 3) Number of deaths
 # 4) Total healthcare spending 
 
-COVID_homeless_model<-function(N_res,N_staff,N_pop,T_sim,beta,epsilon,r_E,p_E,p_s,h,r_p,p_p,alpha,r_sx,p_sx,
+COVID_homeless_model<-function(N_res,N_staff,N_pop,T_sim,w,beta,epsilon,r_E,p_E,p_s,h,r_p,p_p,alpha,r_sx,p_sx,
                                p_h,p_ICU,p_d,mean_days_PCR_pos,min_days_PCR_pos,max_days_PCR_pos,discrnorm,
                                hospitalisation,fit,fit_extrap,spec,testing_days,N_tested,sx_testing_days,
                                CCMS_data,Number,Alive,Resident,Present,Risk,Age,TrueState,DayTrueState,
@@ -50,9 +50,6 @@ COVID_homeless_model<-function(N_res,N_staff,N_pop,T_sim,beta,epsilon,r_E,p_E,p_
   NewInfection <- rep(0,N_pop)
   
   sim_pop0 <- data.frame(cbind(Number, Resident, Alive, Risk, TrueState, DayTrueState, WaitingTime, DaysSinceInfctn, DaysSinceInfctsnss, DaysPCRpos, Hospitalised, ObsState, DayObsState, Tested, HxPCR, DayRemoved, HxAb, NewInfection))
-  
-  # Presence weight
-  w <- c(rep(1,N_res),rep(1/2,N_staff))
   
   # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
   # Decision trees

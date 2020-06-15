@@ -1,3 +1,8 @@
+calc_R0 <- function(beta,w,Present,p_s,Risk,h,alpha,mu_p,mu_sx){
+  R0 <- beta*sum(w*Present*(((1-p_s[Risk])*h+p_s[Risk])*(alpha*mu_p+mu_sx)))
+  return(R0)
+}
+
 # PCR sensitivity as a function of time since start of infectiousness
 sens <- function(x,fit,fit_extrap,max_days_PCR_pos){
   # res <- rep(1,length(x))

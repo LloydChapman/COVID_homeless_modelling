@@ -48,6 +48,9 @@ N_staff <- 65
 N_pop <- N_res + N_staff
 T_sim <- 30
 
+# Set weights for presence of residents and staff in shelter
+w <- c(rep(1,N_res),rep(1/2,N_staff))
+
 # Load posterior distribution for beta from calibration
 beta_pstr <- read.csv("results_ABC_SMC_MNN_gen_10_9.csv",stringsAsFactors = F)
 beta <- median(beta_pstr$V1)
@@ -129,7 +132,7 @@ DaysPCRpos <- rep(NA,N_pop) # duration of PCR positivity (viraemia)
 # Run simulations for each intervention strategy
 for (i in 1:length(interventions)){
   for (j in 1:nsims){
-    res <- COVID_homeless_intervention_model(N_res,N_staff,N_pop,T_sim,beta,epsilon,r_E,p_E,p_s,h,r_p,p_p,
+    res <- COVID_homeless_intervention_model(N_res,N_staff,N_pop,T_sim,w,beta,epsilon,r_E,p_E,p_s,h,r_p,p_p,
                                              alpha,r_sx,p_sx,p_h,p_ICU,p_d,mean_days_PCR_pos,min_days_PCR_pos,
                                              max_days_PCR_pos,discrnorm,hospitalisation,fit,fit_extrap,spec,
                                              testing_days,interventions[[i]],max_PCR_tests_per_week,

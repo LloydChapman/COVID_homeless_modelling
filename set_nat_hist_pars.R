@@ -16,7 +16,7 @@ mu_sx <- 8 # mean of negative-binomially-distributed duration of symptoms
 r_sx <- 4 # shape parameter of negative-binomially-distributed duration of symptoms
 p_sx <- r_sx/(r_sx+mu_sx-1) # 'success' probability of negative-binomially-distributed duration of symptoms
 
-alpha <- 0.44/(1-0.44)*mu_sx/mu_p # relative infectiousness of presymptomatic infection (He 2020 Nat Med)
+alpha <- 2 #0.44/(1-0.44)*mu_sx/mu_p # relative infectiousness of presymptomatic infection (He 2020 Nat Med)
 
 # Vector of probabilities of hospitalisation by age-group and co-morbidity status for severe cases (rows: 1- under-60 & no co-morbidities, 2- 60+ & no co-morbidities, 3- under-60 & co-morbidities, 4- 60+ & co-morbidities)
 p_h <- c((0.021+0.025+0.035+0.077)/4,(0.159+0.262+0.446)/3,(0.044+0.054+0.075+0.165)/4,(0.340+0.561+0.954)/3) # Values from Tuite CMAJ 2020

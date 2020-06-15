@@ -16,7 +16,7 @@
 
 # [ ] - CHECK use of sample() throughout code given how it works for integer vectors of length 1 in first argument! Change to resample() if necessary
 
-COVID_homeless_intervention_model<-function(N_res,N_staff,N_pop,T_sim,beta,epsilon,r_E,p_E,p_s,h,r_p,p_p,
+COVID_homeless_intervention_model<-function(N_res,N_staff,N_pop,T_sim,w,beta,epsilon,r_E,p_E,p_s,h,r_p,p_p,
                                             alpha,r_sx,p_sx,p_h,p_ICU,p_d,mean_days_PCR_pos,min_days_PCR_pos,
                                             max_days_PCR_pos,discrnorm,hospitalisation,fit,fit_extrap,spec,
                                             testing_days,interventions,max_PCR_tests_per_week,
@@ -69,9 +69,6 @@ COVID_homeless_intervention_model<-function(N_res,N_staff,N_pop,T_sim,beta,epsil
   NewInfection <- rep(0,N_pop)
   
   sim_pop0 <- data.frame(cbind(Number, Resident, Alive, Risk, TrueState, DayTrueState, WaitingTime, DaysSinceInfctn, DaysSinceInfctsnss, DaysPCRpos, Hospitalised, Dead, ObsState, DayObsState, Tested, PCRtests, PCRtestsWeek, HxPCR, DayRemoved, HxAb, HxSx, NewInfection))
-  
-  # Presence weight
-  w <- c(rep(1,N_res),rep(1/2,N_staff))
   
   # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
   # Decision trees
