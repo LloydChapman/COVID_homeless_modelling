@@ -22,7 +22,7 @@ COVID_homeless_intervention_model<-function(N_res,N_staff,N_pop,T_sim,w,beta,eps
                                             testing_days,interventions,max_PCR_tests_per_week,
                                             entry_PCR_test_compliance,routine_PCR_test_compliance,
                                             mask_compliance,mask_eff,sens_sx,spec_sx,Number,Alive,Resident,
-                                            Present,Risk,Age,TrueState,DayTrueState,WaitingTime,
+                                            Present,Risk,Age,e0ind,TrueState,DayTrueState,WaitingTime,
                                             DaysSinceInfctn,DaysSinceInfctsnss,DaysPCRpos){
   
   # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
@@ -60,6 +60,7 @@ COVID_homeless_intervention_model<-function(N_res,N_staff,N_pop,T_sim,w,beta,eps
   ObsState <- rep(1,N_pop)
   DayObsState <- rep(0,N_pop)
   Tested <- rep(0,N_pop)
+  DayTested <- rep(NA,N_pop)
   PCRtests <- rep(0,N_pop)
   PCRtestsWeek <- rep(0,N_pop) # counter of number of PCR tests individual has had in current week
   HxPCR <- rep(F,N_pop) # has tested positive on PCR - these individuals are removed and not allowed to return
@@ -68,7 +69,7 @@ COVID_homeless_intervention_model<-function(N_res,N_staff,N_pop,T_sim,w,beta,eps
   HxSx <- rep(F,N_pop) # has screened positive for symptoms
   NewInfection <- rep(0,N_pop)
   
-  sim_pop0 <- data.frame(cbind(Number, Resident, Alive, Risk, TrueState, DayTrueState, WaitingTime, DaysSinceInfctn, DaysSinceInfctsnss, DaysPCRpos, Hospitalised, Dead, ObsState, DayObsState, Tested, PCRtests, PCRtestsWeek, HxPCR, DayRemoved, HxAb, HxSx, NewInfection))
+  sim_pop0 <- data.frame(cbind(Number, Resident, Alive, Risk, TrueState, DayTrueState, WaitingTime, DaysSinceInfctn, DaysSinceInfctsnss, DaysPCRpos, Hospitalised, Dead, ObsState, DayObsState, Tested, DayTested, PCRtests, PCRtestsWeek, HxPCR, DayRemoved, HxAb, HxSx, NewInfection))
   
   # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
   # Decision trees
@@ -82,6 +83,8 @@ COVID_homeless_intervention_model<-function(N_res,N_staff,N_pop,T_sim,w,beta,eps
   # Create objects for storing simulation output
   infections <- rep(0,T_sim)
   cases <- rep(0,T_sim)
+  infections_staff <- rep(0,T_sim)
+  cases_staff <- rep(0,T_sim)
   PCRpos <- rep(0,T_sim)
   state <- matrix(NA, nrow = N_pop, ncol = T_sim)
   state[,1] <- TrueState
@@ -91,6 +94,8 @@ COVID_homeless_intervention_model<-function(N_res,N_staff,N_pop,T_sim,w,beta,eps
   # Initialise vectors for storing individuals removed due to testing PCR positive
   sx_indvdls_removed <- integer()
   PCRpos_removed <- integer()
+  # Initialise vector for individuals who are isolated due to screening positive for symptoms
+  sx_indvdls_isolated <- integer()
     
   for (t in 2:T_sim) {
     
@@ -126,7 +131,7 @@ COVID_homeless_intervention_model<-function(N_res,N_staff,N_pop,T_sim,w,beta,eps
     #   11- True new infection
 
     # Update states of individuals based on transmission on previous day
-    list[TrueState,DayTrueState,DayObsState,WaitingTime,DaysSinceInfctn,DaysSinceInfctsnss,NewInfection,DaysPCRpos,infections[t],cases[t]] <- iterate(TrueState,Present,DayTrueState,DayObsState,DaysSinceInfctn,DaysSinceInfctsnss,beta,w,h,alpha,epsilon,N_pop,WaitingTime,r_E,p_E,e0ind,Risk,p_s,r_p,p_p,NewInfection,DaysPCRpos,min_days_PCR_pos,max_days_PCR_pos,discrnorm,hospitalisation,Hospitalised,Dead,p_h,p_ICU,p_d)
+    list[TrueState,DayTrueState,DayObsState,WaitingTime,DaysSinceInfctn,DaysSinceInfctsnss,NewInfection,DaysPCRpos,infections[t],cases[t],infections_staff[t],cases_staff[t]] <- iterate(TrueState,Present,DayTrueState,DayObsState,DaysSinceInfctn,DaysSinceInfctsnss,beta,w,h,alpha,epsilon,N_pop,WaitingTime,r_E,p_E,e0ind,Risk,p_s,r_p,p_p,NewInfection,DaysPCRpos,min_days_PCR_pos,max_days_PCR_pos,discrnorm,Resident,hospitalisation,Hospitalised,Dead,p_h,p_ICU,p_d)
     
     # Store true states of individuals on day t
     state[,t] <- TrueState
@@ -135,14 +140,20 @@ COVID_homeless_intervention_model<-function(N_res,N_staff,N_pop,T_sim,w,beta,eps
     # ALGORITHM 2: REMOVAL OF INDIVIDUALS # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     
-    Present[c(sx_indvdls_removed,PCRpos_removed)] <- F # All symptomatic individuals who tested PCR positive on the previous day are removed
+    # Remove all individuals who tested PCR positive on the previous day
+    Present[c(sx_indvdls_removed,PCRpos_removed)] <- F
+    # Return symptom positive individuals who tested PCR negative
+    # print(intersect(sx_indvdls_isolated,PCRpos_removed))
+    # print(setdiff(sx_indvdls_isolated,PCRpos_removed))
+    Present[setdiff(sx_indvdls_isolated,PCRpos_removed)] <- T
     DayRemoved[c(sx_indvdls_removed,PCRpos_removed)] <- t
 
     if (2 %in% interventions){
-      list[Present[1:N_res],,Numbers_add1] <- presence_update(Present[1:N_res],HxPCR[1:N_res],Risk[1:N_res]==1,sample(-5:5,1),0)
-      list[Present[1:N_res],,Numbers_add2] <- presence_update(Present[1:N_res],HxPCR[1:N_res],Risk[1:N_res]==2,sample(-5:5,1),0)
-      list[Present[1:N_res],,Numbers_add3] <- presence_update(Present[1:N_res],HxPCR[1:N_res],Risk[1:N_res]==3,sample(-5:5,1),0)
-      list[Present[1:N_res],,Numbers_add4] <- presence_update(Present[1:N_res],HxPCR[1:N_res],Risk[1:N_res]==4,sample(-5:5,1),0)
+      idx <- (Resident==1)
+      list[Present[idx],,Numbers_add1] <- presence_update(Present[idx],HxPCR[idx],Risk[idx]==1,sample(-5:5,1),0)
+      list[Present[idx],,Numbers_add2] <- presence_update(Present[idx],HxPCR[idx],Risk[idx]==2,sample(-5:5,1),0)
+      list[Present[idx],,Numbers_add3] <- presence_update(Present[idx],HxPCR[idx],Risk[idx]==3,sample(-5:5,1),0)
+      list[Present[idx],,Numbers_add4] <- presence_update(Present[idx],HxPCR[idx],Risk[idx]==4,sample(-5:5,1),0)
       # print("Indvdls added")
       # print(c(Numbers_add1,Numbers_add2,Numbers_add3,Numbers_add4))
     }
@@ -151,7 +162,7 @@ COVID_homeless_intervention_model<-function(N_res,N_staff,N_pop,T_sim,w,beta,eps
     sx_indvdls_removed <- integer() # reset list of symptomatic individuals removed to empty
     PCRpos_removed <- integer() # reset list of PCR positive individuals removed to empty
     # print(c(sx_indvdls_removed,PCRpos_removed))
-    # print(sum(Present[1:N_res]))
+    # print(sum(Present[idx]))
     # print(summary(as.factor(Risk[Resident==1 & Present])))
     
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -170,16 +181,20 @@ COVID_homeless_intervention_model<-function(N_res,N_staff,N_pop,T_sim,w,beta,eps
       Numbers_add <- c(Numbers_add1,Numbers_add2,Numbers_add3,Numbers_add4)
       # print(Numbers_add)
       for (i in 1:7){
-        list[PCRtests,Tested,ObsState,DayObsState,HxPCR,PCRpos,PCRpos_removed] <- PCR_testing_on_entry_update(i,TrueState,Number,Numbers_add,entry_PCR_test_compliance,PCRtests,Tested,spec[i],DaysSinceInfctsnss,fit,fit_extrap,max_days_PCR_pos,DayTrueState,DaysPCRpos,WaitingTime,ObsState,DayObsState,HxPCR,PCRpos,t,PCRpos_removed) 
+        list[PCRtests,Tested,DayTested,ObsState,DayObsState,HxPCR,PCRpos,PCRpos_removed] <- PCR_testing_on_entry_update(i,TrueState,Number,Numbers_add,entry_PCR_test_compliance,PCRtests,Tested,DayTested,spec[i],DaysSinceInfctsnss,fit,fit_extrap,max_days_PCR_pos,DayTrueState,DaysPCRpos,WaitingTime,ObsState,DayObsState,HxPCR,PCRpos,t,PCRpos_removed) 
       }
       # print(PCRpos_removed)
     }
         
     # Active symptom screening
     if (1 %in% interventions){
+      HxSx_prev <- HxSx 
       for (i in 1:7){
-        list[HxSx,Tested,PCRtests,PCRtestsWeek,ObsState,DayObsState,HxPCR,PCRpos,PCRpos_removed] <- sx_screening_update(i,TrueState,ObsState,Present,PCRtestsWeek,max_PCR_tests_per_week,sens_sx[i],spec_sx[i],HxSx,PCRtests,Tested,spec[i],DaysSinceInfctsnss,fit,fit_extrap,max_days_PCR_pos,DayTrueState,DaysPCRpos,WaitingTime,DayObsState,HxPCR,PCRpos,t,PCRpos_removed)
+        list[HxSx,Tested,DayTested,PCRtests,PCRtestsWeek,ObsState,DayObsState,HxPCR,PCRpos,PCRpos_removed] <- sx_screening_update(i,TrueState,ObsState,Present,PCRtestsWeek,max_PCR_tests_per_week,sens_sx[i],spec_sx[i],HxSx,PCRtests,Tested,DayTested,spec[i],DaysSinceInfctsnss,fit,fit_extrap,max_days_PCR_pos,DayTrueState,DaysPCRpos,WaitingTime,DayObsState,HxPCR,PCRpos,t,PCRpos_removed)
       }
+      sx_indvdls_isolated <- which(HxSx & !HxSx_prev) # individuals who screen positive for symptoms on this day 
+      Present[sx_indvdls_isolated] <- F # immediately isolate individuals who screen symptom positive until test results are returned the next day
+      # print(sx_indvdls_isolated)
       # print(PCRpos_removed)
     }
     
@@ -189,20 +204,20 @@ COVID_homeless_intervention_model<-function(N_res,N_staff,N_pop,T_sim,w,beta,eps
       # print(idx_sx)
       PCRtests[idx_sx] <- PCRtests[idx_sx] + 1
       PCRtestsWeek[idx_sx] <- PCRtestsWeek[idx_sx] + 1
-      list[Tested,ObsState,DayObsState,HxPCR,PCRpos,PCRpos_removed] <- PCR_testing_update(Tested,idx_sx,6,spec[6],DaysSinceInfctsnss,fit,fit_extrap,max_days_PCR_pos,DayTrueState,DaysPCRpos,WaitingTime,ObsState,DayObsState,HxPCR,PCRpos,t,PCRpos_removed)
+      list[Tested,DayTested,ObsState,DayObsState,HxPCR,PCRpos,PCRpos_removed] <- PCR_testing_update(Tested,DayTested,idx_sx,6,spec[6],DaysSinceInfctsnss,fit,fit_extrap,max_days_PCR_pos,DayTrueState,DaysPCRpos,WaitingTime,ObsState,DayObsState,HxPCR,PCRpos,t,PCRpos_removed)
     }
     
     # Routine PCR testing
     if (3 %in% interventions){
       if (t %in% testing_days){
         for (i in 1:7){
-          list[PCRtests,PCRtestsWeek,Tested,ObsState,DayObsState,HxPCR,PCRpos,PCRpos_removed] <- routine_PCR_testing_update(i,TrueState,ObsState,Present,PCRtestsWeek,max_PCR_tests_per_week,routine_PCR_test_compliance,PCRtests,Tested,spec[i],DaysSinceInfctsnss,fit,fit_extrap,max_days_PCR_pos,DayTrueState,DaysPCRpos,WaitingTime,DayObsState,HxPCR,PCRpos,t,PCRpos_removed)
+          list[PCRtests,PCRtestsWeek,Tested,DayTested,ObsState,DayObsState,HxPCR,PCRpos,PCRpos_removed] <- routine_PCR_testing_update(i,TrueState,ObsState,Present,PCRtestsWeek,max_PCR_tests_per_week,routine_PCR_test_compliance,PCRtests,Tested,DayTested,spec[i],DaysSinceInfctsnss,fit,fit_extrap,max_days_PCR_pos,DayTrueState,DaysPCRpos,WaitingTime,DayObsState,HxPCR,PCRpos,t,PCRpos_removed)
         }        
       }
       # print(PCRpos_removed)
     }
   }
   
-  sim_pop <- data.frame(cbind(Number, Resident, Alive, Present, Age, Risk, TrueState, DayTrueState, WaitingTime, DaysSinceInfctn, DaysSinceInfctsnss, DaysPCRpos, Hospitalised, Dead, ObsState, DayObsState, Tested, PCRtests, PCRtestsWeek, HxPCR, DayRemoved, HxAb, HxSx, NewInfection))
-  return(res=list(infections=infections,cases=cases,PCRpos=PCRpos,sim_pop=sim_pop,state=state,presence=presence))
+  sim_pop <- data.frame(cbind(Number, Resident, Alive, Present, Age, Risk, TrueState, DayTrueState, WaitingTime, DaysSinceInfctn, DaysSinceInfctsnss, DaysPCRpos, Hospitalised, Dead, ObsState, DayObsState, Tested, DayTested, PCRtests, PCRtestsWeek, HxPCR, DayRemoved, HxAb, HxSx, NewInfection))
+  return(res=list(infections=infections,cases=cases,infections_staff=infections_staff,cases_staff=cases_staff,PCRpos=PCRpos,sim_pop=sim_pop,state=state,presence=presence))
 }

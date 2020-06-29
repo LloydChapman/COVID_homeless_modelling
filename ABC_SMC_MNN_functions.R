@@ -1,16 +1,23 @@
-calc_distance <- function(D_S,D_S_star,D_T,D_T_star){
+calc_distance <- function(D_S,D_S_star,D_T,D_T_star,D_C=NULL,D_C_star=NULL){
 	sre1 <- sqrt(sum((D_S - D_S_star)^2))
 	sre2 <- sqrt(sum((D_T - D_T_star)^2))
-	return(c(sre1,sre2))
+	if (!is.null(D_C) & !is.null(D_C_star)){
+	  sre3 <- sqrt(sum((D_C-D_C_star)^2))
+	  return(c(sre1,sre2,sre3))
+	} else {
+	  return(c(sre1,sre2)) 
+	}
 }
 
 # Perturbation kernel 
 rK <- function(mean, sigma, lm.low, lm.upp){   
-	return(rtmvnorm(1,mean=mean, sigma=sigma, lower=lm.low, upper=lm.upp)) 
+	# return(rtmvnorm(1, mean=mean, sigma=sigma, lower=lm.low, upper=lm.upp))
+  # return(rmvnorm(1, mean=mean, sigma=sigma))
+  return(rmvn(1, mu=mean, sigma=sigma))
 }
 
-#  Heaviside function: H(x)=1 if x>0
-H <- function(x) as.numeric(x>0)
+#  Heaviside function: H(x)=1 if x>=0
+H <- function(x) as.numeric(x>=0)
 
 #  Test if prior is non zero
 prior.non.zero <- function(par, lm.low, lm.upp){

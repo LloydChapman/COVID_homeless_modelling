@@ -10,7 +10,7 @@ source("COVID_homeless_interventions.R")
 source("COVID_homeless_functions.R")
 
 # Number of simulations per intervention strategy
-nsims <- 1 #100
+nsims <- 100
 
 ## Set intervention strategies
 # 1 - Active symptom screening
@@ -20,10 +20,6 @@ nsims <- 1 #100
 # 5 - Universal masking
 # 6 - Removal of high-risk individuals
 interventions <- list(NULL,1,c(3,4),c(1,5),c(1,6),c(1,3,5,6))
-
-# Matrices to store total number of infections and clinical cases from each simulation
-infections <- matrix(NA,length(interventions),nsims)
-cases <- matrix(NA,length(interventions),nsims)
 
 # Load CCMS data from MSC South outbreak
 CCMS_data <- read.csv("../Data/CCMS_data.csv",stringsAsFactors = F)
@@ -43,17 +39,17 @@ SF_data <- SF_data[!(SF_data$Case.Disposition=="Death"),]
 SF_case_data <- aggregate(Case.Count ~ Date,SF_data,sum)
 
 # Set number of residents and staff in shelter and duration of simulation
-N_res <- 350
-N_staff <- 65
+N_res <- 250 #237 #350
+N_staff <- 50 #65
 N_pop <- N_res + N_staff
 T_sim <- 30
 
 # Set weights for presence of residents and staff in shelter
-w <- c(rep(1,N_res),rep(1/2,N_staff))
+w <- rep(1,N_pop) # c(rep(1,N_res),rep(1/2,N_staff))
 
-# Load posterior distribution for beta from calibration
-beta_pstr <- read.csv("results_ABC_SMC_MNN_gen_10_9.csv",stringsAsFactors = F)
-beta <- median(beta_pstr$V1)
+# Load posterior distribution for R0 from calibration
+pars <- read.csv("results_ABC_SMC_MNN_gen_10_11.csv",stringsAsFactors = F)
+R0 <- median(pars[,1]) # 2 #
 
 # Set natural history parameters
 source("set_nat_hist_pars.R")
@@ -65,24 +61,26 @@ hospitalisation <- T
 source("set_PCR_test_pars.R")
 
 # PCR testing frequency
-testing_days <- seq(1,T_sim)[(seq(1,T_sim) %% 7) %in% seq(0,6)] # testing twice per week on 1st and 4th day
+testing_days <- seq(1,T_sim)[(seq(1,T_sim) %% 7) %in% seq(1,4)] # seq(1,T_sim)[(seq(1,T_sim) %% 7) %in% seq(0,6)] # testing twice per week on 1st and 4th day
 
 # Set intervention parameters
-max_PCR_tests_per_week <- 10 # maximum number of PCR tests per week 
+max_PCR_tests_per_week <- 2 #10 # maximum number of PCR tests per week 
 
 # PCR testing once upon entry
 entry_PCR_test_compliance <- 0.8 # 80% compliance with PCR testing on entry
 
 # Routine PCR testing
-routine_PCR_test_compliance <- 1 #0.8 # 80% compliance with routine PCR testing
+routine_PCR_test_compliance <- 0.8 # 1 # 80% compliance with routine PCR testing
 
 # Mask wearing
-mask_compliance <- 1 #0.8 # 80% compliance with universal masking
-mask_eff <- 1 #0.3 # 30% reduction in transmission from universal masking
+mask_compliance <- 0.8 # 1 # 80% compliance with universal masking
+mask_eff <- 0.3 # 1 # 30% reduction in transmission from universal masking
 
 # Symptom screening sensitivity and specificity
 sens_sx <- c(NA,NA,NA,NA,NA,0.9,NA) # sensitivities for states 1 to 7
 spec_sx <- c(0.75,0.75,0.75,0.75,0.75,NA,0.75) # specificities for states 1 to 7
+# sens_sx <- c(NA,NA,NA,NA,NA,1,NA) # sensitivities for states 1 to 7
+# spec_sx <- c(1,1,1,1,1,NA,1) # specificities for states 1 to 7
 
 # Initialise variables
 Number <- 1:N_pop
@@ -105,49 +103,34 @@ Hi_Risk_Both_Age_Dx_present0 <- sample(setdiff(res_present0,c(Hi_Risk_60_only_pr
 Hi_Risk_Both_Age_Dx_absent0 <- sample(setdiff(res_absent0,c(Hi_Risk_60_only_absent0,Hi_Risk_Dx_only_absent0)),v$Hi_Risk_Both_Age_Dx-CCMS_data$Hi_Risk_Both_Age_Dx[1])
 Risk[c(Hi_Risk_Both_Age_Dx_present0,Hi_Risk_Both_Age_Dx_absent0)] <- 4
 Age <- rep(NA,N_pop)
-Age[Risk %in% c(1,3)] <- sample(x=seq(18,59), size=sum(Risk %in% c(1,3)), replace=TRUE)
-Age[Risk %in% c(2,4)] <- sample(x=seq(60,69), size=sum(Risk %in% c(2,4)), replace=TRUE) # [ ] - CHECK oldest age (have assumed 69 for now)
+Age[Risk %in% c(1,3)] <- sample(x=seq(20,59), size=sum(Risk %in% c(1,3)), replace=TRUE)
+Age[Risk %in% c(2,4)] <- sample(x=seq(60,80), size=sum(Risk %in% c(2,4)), replace=TRUE) # [ ] - CHECK oldest age (have assumed 69 for now)
 TrueState <- rep(1,N_pop)
 # "Index" cases:
-# 1st case with sx onset on 3/31
-i_s_p0 <- sample(res_present0,1) # draw at random from residents who are present
-TrueState[i_s_p0] <- 4 # assume initially in severe presymptomatic state
-# 2nd case with sx onset on 4/2, assume initially in exposed state
-e0 <- sample(setdiff(res_present0,i_s_p0),1) # draw at random from remaining residents who are present
+E0 <- 1 # 1 initial latently infected case
+e0 <- sample(res_present0,E0)
+# # 1st case with sx onset on 3/31
+# i_s_p0 <- sample(res_present0,1) # draw at random from residents who are present
+# TrueState[i_s_p0] <- 4 # assume initially in severe presymptomatic state
+# # 2nd case with sx onset on 4/2, assume initially in exposed state
+# e0 <- sample(setdiff(res_present0,i_s_p0),1) # draw at random from remaining residents who are present
 e0ind <- rep(F,N_pop)
-e0ind[e0] <- T
+# e0ind[e0] <- T
 TrueState[e0] <- 2 # assume initially in latent state
 DayTrueState <- rep(0,N_pop)
-DayTrueState[e0] <- 1 # assume 2nd index case has been in latent state for 1 day
+# DayTrueState[e0] <- 1 # assume 2nd index case has been in latent state for 1 day
+DayTrueState[e0] <- 0 # assume all index cases are at start of latent stage
 WaitingTime <- rep(NA,N_pop)
-WaitingTime[i_s_p0] <- 2 # assume 1st index case has presymptomatic duration of 2 days (~mean of presymptomatic duration distribution) # rnbinom(length(i_s_p0),r_p,p_p)+1
-WaitingTime[e0] <- 3 # assume 2nd index case has latent duration of 3 days (mean of latent duration distribution)
+# WaitingTime[i_s_p0] <- 2 # assume 1st index case has presymptomatic duration of 2 days (~mean of presymptomatic duration distribution) # rnbinom(length(i_s_p0),r_p,p_p)+1
+# WaitingTime[e0] <- 3 # assume 2nd index case has latent duration of 3 days (mean of latent duration distribution)
+WaitingTime[e0] <- rbinom(E0,r_E,p_E) + 1 # draw latent duration of 3 days (mean of latent duration distribution)
 DaysSinceInfctn <- rep(NA,N_pop) # days since infection
-DaysSinceInfctn[i_s_p0] <- rbinom(length(i_s_p0),r_E,p_E)+1 # latent period of 1st index case prior to start of simulation
+# DaysSinceInfctn[i_s_p0] <- rbinom(length(i_s_p0),r_E,p_E)+1 # latent period of 1st index case prior to start of simulation
 DaysSinceInfctn[e0] <- DayTrueState[e0]
 DaysSinceInfctsnss <- rep(NA,N_pop) # days since start of infectiousness (i.e. start of presymptomatic infectious stage)
-DaysSinceInfctsnss[i_s_p0] <- 0
+# DaysSinceInfctsnss[i_s_p0] <- 0
 DaysPCRpos <- rep(NA,N_pop) # duration of PCR positivity (viraemia)
 
-# Run simulations for each intervention strategy
-for (i in 1:length(interventions)){
-  for (j in 1:nsims){
-    res <- COVID_homeless_intervention_model(N_res,N_staff,N_pop,T_sim,w,beta,epsilon,r_E,p_E,p_s,h,r_p,p_p,
-                                             alpha,r_sx,p_sx,p_h,p_ICU,p_d,mean_days_PCR_pos,min_days_PCR_pos,
-                                             max_days_PCR_pos,discrnorm,hospitalisation,fit,fit_extrap,spec,
-                                             testing_days,interventions[[i]],max_PCR_tests_per_week,
-                                             entry_PCR_test_compliance,routine_PCR_test_compliance,
-                                             mask_compliance,mask_eff,sens_sx,spec_sx,Number,Alive,Resident,
-                                             Present,Risk,Age,TrueState,DayTrueState,WaitingTime,
-                                             DaysSinceInfctn,DaysSinceInfctsnss,DaysPCRpos)
-    infections[i,j] <- sum(res$infections)
-    cases[i,j] <- sum(res$cases)
-  }  
-}
-
-print(rowMeans(infections))
-# # Save total number of new infections per simulation
-# write.table(cbind(infections,rowMeans(infections)),"new_onsets_interventions.csv",sep = ",",col.names = F, row.names = F)
 
 # # Quality checks
 # # Daily PCR testing with no max number of weekly tests # [ ] - changes hard coded in interventions code, need to UPDATE
