@@ -89,7 +89,6 @@ case_dates <- case_data$date # dates with numbers of symptomatic cases recorded
 
 # Initialise variables
 Number <- 1:N_pop
-Alive <- rep(1,N_pop)
 Resident <- rep(0,N_pop)
 Resident[1:N_res] <- 1
 res_present0 <- sample(1:N_res,CCMS_data$Total_Census[1])

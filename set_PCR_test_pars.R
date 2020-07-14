@@ -1,7 +1,7 @@
 # Set PCR test parameters
 
 # Sensitivity as a function of days since start of infectiousness
-FNR <- read.csv("../Data/digitised_sens_graph.csv",header = F, stringsAsFactors = F)
+FNR <- read.csv("digitised_sens_graph.csv",header = F, stringsAsFactors = F)
 x <- round(FNR[(round(mu_E)+1):nrow(FNR),1],0)-round(mu_E) # [ ] - Think about whether it should be mu_E or 3 here?
 y <- 1 - FNR[(round(mu_E)+1):nrow(FNR),2]
 fit <- lm(y ~ bs(x,knots = c(3,4,6,7,10,15,16)-round(mu_E)))

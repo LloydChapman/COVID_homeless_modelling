@@ -43,7 +43,6 @@ N_sx_tested <- integer() # number of symptomatic individuals tested on each symp
 
 # Initialise variables
 Number <- 1:N_pop
-Alive <- rep(1,N_pop)
 Resident <- rep(0,N_pop)
 Resident[1:N_res] <- 1
 res_present0 <- 1:N_res # assume all residents present for duration of simulation for now # [ ] - UPDATE this with info from MMWR paper # sample(1:N_res,SF_CCMS_data$Total_Census[1])

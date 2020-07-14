@@ -160,6 +160,20 @@ plot_calibration <- function(fnm1,fnm2,str,lm.low,lm.upp,end_date,D_S,D_T,D_C=NU
   print(p)
   dev.off()
   
+  if (!is.null(D_C)){
+    cases_df <- data.frame(cases_mat)
+    names(cases_df) <- case_dates
+    cases_df$sim <- row.names(cases_df)
+    cases_melt <- melt(cases_df,id.vars="sim")
+    cases_melt$variable <- as.Date(cases_melt$variable)
+    pdf(paste0("cases_calibration",str,".pdf"),width = 6, height = 5)
+    print(ggplot() + geom_line(aes(x=variable,y=value,group=as.factor(sim)),cases_melt,col="#999999") +
+      geom_point(aes(x=variable,y=value,group=as.factor(sim)),cases_melt,col="#999999",pch=19) +
+      geom_point(aes(x=date,y=cases),data.frame(date=case_dates,cases=D_C),col="black",size=2) + 
+      xlab("Date") + ylab("No. PCR positive") + theme(legend.position = "none") + theme_classic())
+    dev.off()
+  }
+
   # num_PCRpos_staff <- rep(0,length(sim_pop_list))
   # for (i in 1:length(sim_pop_list)){
   #   num_PCRpos_staff[i] <- sum(sim_pop_list[[i]]$HxPCR[sim_pop_list[[i]]$Resident==0],na.rm = T) 

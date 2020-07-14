@@ -62,6 +62,9 @@ iterate <- function(TrueState,Present,DayTrueState,DayObsState,DaysSinceInfctn,D
   # Step 1: S -> E (infection)
   lambda <- beta*Present*w*(h*(alpha*I_m_p+I_m_sx)+alpha*I_s_p+I_s_sx) + epsilon
   # lambda <- beta*Present*w*(h*(alpha*I_m_p+I_m_sx)+alpha*I_s_p+I_s_sx)/sum(Present*w) + epsilon # Only individuals present in the shelter can be infected by others in the shelter, those not present can be infected by infectious individuals in the general population
+  # print(which(e))
+  # print(E)
+  # print(mean(lambda))
   # print(paste0("sum(lambda)=",sum(lambda)))
   prob_infection <- 1-exp(-lambda)
   s2e <- (s & runif(N_pop)<prob_infection)
@@ -176,8 +179,9 @@ PCR_testing_update <- function(Tested,DayTested,idx,state,spec,DaysSinceInfctsns
 }
 
 # Function for updates resulting from symptom screening
-sx_screening_update <- function(state,TrueState,ObsState,Present,PCRtestsWeek,max_PCR_tests_per_week,sens_sx,spec_sx,HxSx,PCRtests,Tested,DayTested,spec,DaysSinceInfctsnss,fit,fit_extrap,max_days_PCR_pos,DayTrueState,DaysPCRpos,WaitingTime,DayObsState,HxPCR,PCRpos,t,PCRpos_removed){
-  idx <- ((TrueState==state) & (ObsState==1) & Present & (PCRtestsWeek<max_PCR_tests_per_week))
+sx_screening_update <- function(state,TrueState,ObsState,Present,PCRtestsWeek,max_PCR_tests_per_week,min_days_btw_tests,sens_sx,spec_sx,HxSx,PCRtests,Tested,DayTested,spec,DaysSinceInfctsnss,fit,fit_extrap,max_days_PCR_pos,DayTrueState,DaysPCRpos,WaitingTime,DayObsState,HxPCR,PCRpos,t,PCRpos_removed){
+  # idx <- ((TrueState==state) & (ObsState==1) & Present & (PCRtestsWeek<max_PCR_tests_per_week))
+  idx <- ((TrueState==state) & (ObsState==1) & Present & (t-DayTested>=min_days_btw_tests | is.na(DayTested)))
   if (any(idx)){
     if (state %in% c(1,2,3,4,5,7)){
       sx_pos <- (runif(sum(idx))<1-spec_sx) # draw which individuals are positive for symptoms
@@ -205,8 +209,9 @@ PCR_testing_on_entry_update <- function(state,TrueState,Number,Numbers_add,entry
 }
 
 # Function for updates resulting from routine PCR testing
-routine_PCR_testing_update <- function(state,TrueState,ObsState,Present,PCRtestsWeek,max_PCR_tests_per_week,routine_PCR_test_compliance,PCRtests,Tested,DayTested,spec,DaysSinceInfctsnss,fit,fit_extrap,max_days_PCR_pos,DayTrueState,DaysPCRpos,WaitingTime,DayObsState,HxPCR,PCRpos,t,PCRpos_removed){
-  idx <- which(TrueState==state & ObsState==1 & Present & PCRtestsWeek<max_PCR_tests_per_week & runif(length(TrueState))<routine_PCR_test_compliance) # individuals present in the shelter not known to be infected who have had less than max_PCR_tests_per_week PCR tests in the current week and comply
+routine_PCR_testing_update <- function(state,TrueState,ObsState,Present,PCRtestsWeek,max_PCR_tests_per_week,min_days_btw_tests,routine_PCR_test_compliance,PCRtests,Tested,DayTested,spec,DaysSinceInfctsnss,fit,fit_extrap,max_days_PCR_pos,DayTrueState,DaysPCRpos,WaitingTime,DayObsState,HxPCR,PCRpos,t,PCRpos_removed){
+  # idx <- which(TrueState==state & ObsState==1 & Present & PCRtestsWeek<max_PCR_tests_per_week & runif(length(TrueState))<routine_PCR_test_compliance) # individuals present in the shelter not known to be infected who have had less than max_PCR_tests_per_week PCR tests in the current week and comply
+  idx <- which(TrueState==state & ObsState==1 & Present & (t-DayTested>=min_days_btw_tests | is.na(DayTested)) & runif(length(TrueState))<routine_PCR_test_compliance) # individuals present in the shelter not known to be infected who have not been tested in last min_days_btw_tests days and comply
   PCRtests[idx] <- PCRtests[idx] + 1
   PCRtestsWeek[idx] <- PCRtestsWeek[idx] + 1
   list[Tested,DayTested,ObsState,DayObsState,HxPCR,PCRpos,PCRpos_removed] <- PCR_testing_update(Tested,DayTested,idx,state,spec,DaysSinceInfctsnss,fit,fit_extrap,max_days_PCR_pos,DayTrueState,DaysPCRpos,WaitingTime,ObsState,DayObsState,HxPCR,PCRpos,t,PCRpos_removed)

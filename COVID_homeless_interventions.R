@@ -1,6 +1,6 @@
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # Title: Comparison of public health strategies to reduce COVID-19 in homeless populations across the United States 
-# Code author: Lloyd Chapman, Nathan C Lo, MD PhD (UCSF)
+# Code author: Lloyd Chapman (UCSF)
 # Origin date: 5/19/20
 # Last updated: 6/9/20
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
@@ -19,9 +19,9 @@
 COVID_homeless_intervention_model<-function(N_res,N_staff,N_pop,T_sim,w,beta,epsilon,r_E,p_E,p_s,h,r_p,p_p,
                                             alpha,r_sx,p_sx,p_h,p_ICU,p_d,mean_days_PCR_pos,min_days_PCR_pos,
                                             max_days_PCR_pos,discrnorm,hospitalisation,fit,fit_extrap,spec,
-                                            testing_days,interventions,max_PCR_tests_per_week,
+                                            testing_days,interventions,max_PCR_tests_per_week,min_days_btw_tests,
                                             entry_PCR_test_compliance,routine_PCR_test_compliance,
-                                            mask_compliance,mask_eff,sens_sx,spec_sx,Number,Alive,Resident,
+                                            mask_compliance,mask_eff,sens_sx,spec_sx,Number,Resident,
                                             Present,Risk,Age,e0ind,TrueState,DayTrueState,WaitingTime,
                                             DaysSinceInfctn,DaysSinceInfctsnss,DaysPCRpos){
   
@@ -69,7 +69,7 @@ COVID_homeless_intervention_model<-function(N_res,N_staff,N_pop,T_sim,w,beta,eps
   HxSx <- rep(F,N_pop) # has screened positive for symptoms
   NewInfection <- rep(0,N_pop)
   
-  sim_pop0 <- data.frame(cbind(Number, Resident, Alive, Risk, TrueState, DayTrueState, WaitingTime, DaysSinceInfctn, DaysSinceInfctsnss, DaysPCRpos, Hospitalised, Dead, ObsState, DayObsState, Tested, DayTested, PCRtests, PCRtestsWeek, HxPCR, DayRemoved, HxAb, HxSx, NewInfection))
+  sim_pop0 <- data.frame(cbind(Number, Resident, Risk, TrueState, DayTrueState, WaitingTime, DaysSinceInfctn, DaysSinceInfctsnss, DaysPCRpos, Hospitalised, Dead, ObsState, DayObsState, Tested, DayTested, PCRtests, PCRtestsWeek, HxPCR, DayRemoved, HxAb, HxSx, NewInfection))
   
   # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
   # Decision trees
@@ -190,7 +190,7 @@ COVID_homeless_intervention_model<-function(N_res,N_staff,N_pop,T_sim,w,beta,eps
     if (1 %in% interventions){
       HxSx_prev <- HxSx 
       for (i in 1:7){
-        list[HxSx,Tested,DayTested,PCRtests,PCRtestsWeek,ObsState,DayObsState,HxPCR,PCRpos,PCRpos_removed] <- sx_screening_update(i,TrueState,ObsState,Present,PCRtestsWeek,max_PCR_tests_per_week,sens_sx[i],spec_sx[i],HxSx,PCRtests,Tested,DayTested,spec[i],DaysSinceInfctsnss,fit,fit_extrap,max_days_PCR_pos,DayTrueState,DaysPCRpos,WaitingTime,DayObsState,HxPCR,PCRpos,t,PCRpos_removed)
+        list[HxSx,Tested,DayTested,PCRtests,PCRtestsWeek,ObsState,DayObsState,HxPCR,PCRpos,PCRpos_removed] <- sx_screening_update(i,TrueState,ObsState,Present,PCRtestsWeek,max_PCR_tests_per_week,min_days_btw_tests,sens_sx[i],spec_sx[i],HxSx,PCRtests,Tested,DayTested,spec[i],DaysSinceInfctsnss,fit,fit_extrap,max_days_PCR_pos,DayTrueState,DaysPCRpos,WaitingTime,DayObsState,HxPCR,PCRpos,t,PCRpos_removed)
       }
       sx_indvdls_isolated <- which(HxSx & !HxSx_prev) # individuals who screen positive for symptoms on this day 
       Present[sx_indvdls_isolated] <- F # immediately isolate individuals who screen symptom positive until test results are returned the next day
@@ -211,13 +211,23 @@ COVID_homeless_intervention_model<-function(N_res,N_staff,N_pop,T_sim,w,beta,eps
     if (3 %in% interventions){
       if (t %in% testing_days){
         for (i in 1:7){
-          list[PCRtests,PCRtestsWeek,Tested,DayTested,ObsState,DayObsState,HxPCR,PCRpos,PCRpos_removed] <- routine_PCR_testing_update(i,TrueState,ObsState,Present,PCRtestsWeek,max_PCR_tests_per_week,routine_PCR_test_compliance,PCRtests,Tested,DayTested,spec[i],DaysSinceInfctsnss,fit,fit_extrap,max_days_PCR_pos,DayTrueState,DaysPCRpos,WaitingTime,DayObsState,HxPCR,PCRpos,t,PCRpos_removed)
+          list[PCRtests,PCRtestsWeek,Tested,DayTested,ObsState,DayObsState,HxPCR,PCRpos,PCRpos_removed] <- routine_PCR_testing_update(i,TrueState,ObsState,Present,PCRtestsWeek,max_PCR_tests_per_week,min_days_btw_tests,routine_PCR_test_compliance,PCRtests,Tested,DayTested,spec[i],DaysSinceInfctsnss,fit,fit_extrap,max_days_PCR_pos,DayTrueState,DaysPCRpos,WaitingTime,DayObsState,HxPCR,PCRpos,t,PCRpos_removed)
+        }        
+      }
+      # print(PCRpos_removed)
+    }
+    
+    # Routine PCR testing of staff only
+    if (7 %in% interventions){
+      if (t %in% testing_days){
+        for (i in 1:7){
+          list[PCRtests,PCRtestsWeek,Tested,DayTested,ObsState,DayObsState,HxPCR,PCRpos,PCRpos_removed] <- routine_PCR_testing_update(i,TrueState,ObsState,(Present & Resident==0),PCRtestsWeek,max_PCR_tests_per_week,min_days_btw_tests,routine_PCR_test_compliance,PCRtests,Tested,DayTested,spec[i],DaysSinceInfctsnss,fit,fit_extrap,max_days_PCR_pos,DayTrueState,DaysPCRpos,WaitingTime,DayObsState,HxPCR,PCRpos,t,PCRpos_removed)
         }        
       }
       # print(PCRpos_removed)
     }
   }
   
-  sim_pop <- data.frame(cbind(Number, Resident, Alive, Present, Age, Risk, TrueState, DayTrueState, WaitingTime, DaysSinceInfctn, DaysSinceInfctsnss, DaysPCRpos, Hospitalised, Dead, ObsState, DayObsState, Tested, DayTested, PCRtests, PCRtestsWeek, HxPCR, DayRemoved, HxAb, HxSx, NewInfection))
+  sim_pop <- data.frame(cbind(Number, Resident, Present, Age, Risk, TrueState, DayTrueState, WaitingTime, DaysSinceInfctn, DaysSinceInfctsnss, DaysPCRpos, Hospitalised, Dead, ObsState, DayObsState, Tested, DayTested, PCRtests, PCRtestsWeek, HxPCR, DayRemoved, HxAb, HxSx, NewInfection))
   return(res=list(infections=infections,cases=cases,infections_staff=infections_staff,cases_staff=cases_staff,PCRpos=PCRpos,sim_pop=sim_pop,state=state,presence=presence))
 }

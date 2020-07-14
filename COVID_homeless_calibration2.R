@@ -17,7 +17,7 @@
 COVID_homeless_model<-function(N_res,N_staff,N_pop,T_sim,w,beta,epsilon,r_E,p_E,p_s,h,r_p,p_p,alpha,r_sx,p_sx,
                                p_h,p_ICU,p_d,mean_days_PCR_pos,min_days_PCR_pos,max_days_PCR_pos,discrnorm,
                                hospitalisation,fit,fit_extrap,spec,testing_days,N_tested,sx_testing_days,N_sx_tested,
-                               CCMS_data,Number,Alive,Resident,Present,Risk,Age,e0ind,TrueState,DayTrueState,
+                               CCMS_data,Number,Resident,Present,Risk,Age,e0ind,TrueState,DayTrueState,
                                WaitingTime,DaysSinceInfctn,DaysSinceInfctsnss,DaysPCRpos,shelter){
 
   # print(dim(CCMS_data))
@@ -52,7 +52,7 @@ COVID_homeless_model<-function(N_res,N_staff,N_pop,T_sim,w,beta,epsilon,r_E,p_E,
   HxAb <- rep(F,N_pop) # has tested positive for antibodies
   NewInfection <- rep(0,N_pop)
   
-  sim_pop0 <- data.frame(cbind(Number, Resident, Alive, Risk, TrueState, DayTrueState, WaitingTime, DaysSinceInfctn, DaysSinceInfctsnss, DaysPCRpos, Hospitalised, ObsState, DayObsState, Tested, DayTested, HxPCR, DayRemoved, HxAb, NewInfection))
+  sim_pop0 <- data.frame(cbind(Number, Resident, Risk, TrueState, DayTrueState, WaitingTime, DaysSinceInfctn, DaysSinceInfctsnss, DaysPCRpos, Hospitalised, ObsState, DayObsState, Tested, DayTested, HxPCR, DayRemoved, HxAb, NewInfection))
   
   # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
   # Decision trees
@@ -228,7 +228,7 @@ COVID_homeless_model<-function(N_res,N_staff,N_pop,T_sim,w,beta,epsilon,r_E,p_E,
     }
 }
 
-sim_pop <- data.frame(cbind(Number, Resident, Alive, Present, Age, Risk, TrueState, DayTrueState, WaitingTime, DaysSinceInfctn, DaysSinceInfctsnss, DaysPCRpos, Hospitalised, ObsState, DayObsState, Tested, DayTested, HxPCR, DayRemoved, HxAb, NewInfection))
+sim_pop <- data.frame(cbind(Number, Resident, Present, Age, Risk, TrueState, DayTrueState, WaitingTime, DaysSinceInfctn, DaysSinceInfctsnss, DaysPCRpos, Hospitalised, ObsState, DayObsState, Tested, DayTested, HxPCR, DayRemoved, HxAb, NewInfection))
 return(res=list(infections=infections,cases=cases,infections_staff=infections_staff,cases_staff=cases_staff,PCRpos_sx_testing=PCRpos_sx_testing,PCRpos=PCRpos,sim_pop=sim_pop,state=state,presence=presence))
 
 }
