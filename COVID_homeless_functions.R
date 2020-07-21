@@ -179,7 +179,7 @@ PCR_testing_update <- function(Tested,DayTested,idx,state,spec,DaysSinceInfctsns
 }
 
 # Function for updates resulting from symptom screening
-sx_screening_update <- function(state,TrueState,ObsState,Present,PCRtestsWeek,max_PCR_tests_per_week,min_days_btw_tests,sens_sx,spec_sx,HxSx,PCRtests,Tested,DayTested,spec,DaysSinceInfctsnss,fit,fit_extrap,max_days_PCR_pos,DayTrueState,DaysPCRpos,WaitingTime,DayObsState,HxPCR,PCRpos,t,PCRpos_removed){
+sx_screening_update <- function(state,TrueState,ObsState,Present,PCRtestsWeek,max_PCR_tests_per_week,min_days_btw_tests,sens_sx,spec_sx,HxSx,sx_pos_PCR_test_compliance,PCRtests,Tested,DayTested,spec,DaysSinceInfctsnss,fit,fit_extrap,max_days_PCR_pos,DayTrueState,DaysPCRpos,WaitingTime,DayObsState,HxPCR,PCRpos,t,PCRpos_removed){
   # idx <- ((TrueState==state) & (ObsState==1) & Present & (PCRtestsWeek<max_PCR_tests_per_week))
   idx <- ((TrueState==state) & (ObsState==1) & Present & (t-DayTested>=min_days_btw_tests | is.na(DayTested)))
   if (any(idx)){
@@ -192,9 +192,10 @@ sx_screening_update <- function(state,TrueState,ObsState,Present,PCRtestsWeek,ma
     HxSx[idx_pos] <- T # mark as having symptoms
     
     # PCR test those positive for symptoms
-    PCRtests[idx_pos] <- PCRtests[idx_pos] + 1 # increment counter for total number of PCR tests
-    PCRtestsWeek[idx_pos] <- PCRtestsWeek[idx_pos] + 1 # increment counter for number of PCR tests this week
-    list[Tested,DayTested,ObsState,DayObsState,HxPCR,PCRpos,PCRpos_removed] <- PCR_testing_update(Tested,DayTested,idx_pos,state,spec,DaysSinceInfctsnss,fit,fit_extrap,max_days_PCR_pos,DayTrueState,DaysPCRpos,WaitingTime,ObsState,DayObsState,HxPCR,PCRpos,t,PCRpos_removed)
+    idx_pos_tested <- idx_pos[runif(length(idx_pos))<sx_pos_PCR_test_compliance]
+    PCRtests[idx_pos_tested] <- PCRtests[idx_pos_tested] + 1 # increment counter for total number of PCR tests
+    PCRtestsWeek[idx_pos_tested] <- PCRtestsWeek[idx_pos_tested] + 1 # increment counter for number of PCR tests this week
+    list[Tested,DayTested,ObsState,DayObsState,HxPCR,PCRpos,PCRpos_removed] <- PCR_testing_update(Tested,DayTested,idx_pos_tested,state,spec,DaysSinceInfctsnss,fit,fit_extrap,max_days_PCR_pos,DayTrueState,DaysPCRpos,WaitingTime,ObsState,DayObsState,HxPCR,PCRpos,t,PCRpos_removed)
   }
   return(list(HxSx=HxSx,Tested=Tested,DayTested=DayTested,PCRtests=PCRtests,PCRtestsWeek=PCRtestsWeek,ObsState=ObsState,DayObsState=DayObsState,HxPCR=HxPCR,PCRpos=PCRpos,PCRpos_removed=PCRpos_removed))
 }

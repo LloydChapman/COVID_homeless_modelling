@@ -18,6 +18,10 @@ SF_CCMS_data[is.na(SF_CCMS_data)] <- 0
 start_date <- as.Date("4/1/2020",format = "%m/%d/%Y")
 end_date <- as.Date("4/8/2020",format = "%m/%d/%Y")
 
+# Load Seattle case data obtained from https://www.kingcounty.gov/depts/health/covid-19/data/daily-summary.aspx
+Seattle_case_data <- read.csv("../Data/Seattle_cases.csv",stringsAsFactors = F)
+Seattle_case_data$Date <- as.Date(Seattle_case_data$Date,format = "%m/%d/%y")
+
 # Set number of residents and staff in shelter and duration of simulation
 N_res <- 245
 N_staff <- 27
@@ -28,6 +32,15 @@ w <- c(rep(1,N_res),rep(1/2,N_staff))
 
 # Set natural history parameters
 source("set_nat_hist_pars.R")
+
+# Set background transmission rate
+reporting_delay <- 7 # days from start of infectiousness = 2 days presymptomatic infectious + 5 days from symptom onset to reporting
+trnsmssn_window <- 21 # days
+underreporting <- 10 # under-reporting ratio for confirmed cases vs infections
+homeless_RR <- 2 # relative-risk of infection for homeless individuals
+mean_daily_cases <- mean(Seattle_case_data$Cases[Seattle_case_data$Date>=end_date-trnsmssn_window+reporting_delay & Seattle_case_data$Date<=end_date+reporting_delay]) # mean of confirmed cases for period of interest
+mean_daily_inc <- mean_daily_cases/753675 # population estimate from US Census Bureau [https://www.census.gov/quickfacts/fact/table/seattlecitywashington/PST045219]
+epsilon <- mean_daily_inc*underreporting*homeless_RR # adjusted transmission rate outside shelter
 
 # Flag for whether to count hospitalisations and deaths
 hospitalisation <- F # false as data not available
@@ -68,3 +81,13 @@ Age[Risk %in% c(2,4)] <- sample(x=seq(60,77), size=sum(Risk %in% c(2,4)), replac
 D_S <- NULL
 D_T <- c(15,16) # number of positives during mass testing
 D_C <- NULL # set to NULL if no data available on symptom onsets
+
+# Set lower and upper bounds for R0 and convert to bounds for beta
+R0.low <- 1
+R0.upp <- 8
+beta.low <- calc_beta(R0.low,w,Present,p_s,Risk,h,alpha,mu_p,mu_sx)
+beta.upp <- calc_beta(R0.upp,w,Present,p_s,Risk,h,alpha,mu_p,mu_sx)
+
+#  Lower and upper boundaries for priors
+lm.low <- c(beta.low,1,14)
+lm.upp <- c(beta.upp,10,30)

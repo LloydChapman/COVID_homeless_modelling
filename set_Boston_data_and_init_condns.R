@@ -18,6 +18,11 @@ SF_CCMS_data[is.na(SF_CCMS_data)] <- 0
 start_date <- as.Date("4/2/2020",format = "%m/%d/%Y")
 end_date <- as.Date("4/3/2020",format = "%m/%d/%Y")
 
+# Load Boston case data obtained from https://dashboard.cityofboston.gov/t/Guest_Access_Enabled/views/COVID-19/Dashboard1?:showAppBanner=false&:display_count=n&:showVizHome=n&:origin=viz_share_link&:isGuestRedirectFromVizportal=y&:embed=y
+Boston_data <- read.delim("../Data/Boston_Cases_over_time_data.csv",sep = "\t",stringsAsFactors = F, fileEncoding = "UTF-16")
+Boston_case_data <- data.frame(Date = as.Date(Boston_data$Day.of.Timestamp,format = "%B %d, %Y"))
+Boston_case_data$Cases <- c(0,diff(Boston_data$Cases..Total.Positive,lag = 1))
+
 # Set number of residents and staff in shelter and duration of simulation
 N_res <- 408
 N_staff <- 50
@@ -28,6 +33,15 @@ w <- rep(1,N_pop) # c(rep(1,N_res),rep(1/2,N_staff))
 
 # Set natural history parameters
 source("set_nat_hist_pars.R")
+
+# Set background transmission rate
+reporting_delay <- 7 # days from start of infectiousness = 2 days presymptomatic infectious + 5 days from symptom onset to reporting
+trnsmssn_window <- 21 # days
+underreporting <- 10 # under-reporting ratio for confirmed cases vs infections
+homeless_RR <- 2 # relative-risk of infection for homeless individuals
+mean_daily_cases <- mean(Boston_case_data$Cases[Boston_case_data$Date>=end_date-trnsmssn_window+reporting_delay & Boston_case_data$Date<=end_date+reporting_delay]) # mean of confirmed cases for period of interest
+mean_daily_inc <- mean_daily_cases/692600 # population estimate from US Census Bureau [https://www.census.gov/quickfacts/fact/table/bostoncitymassachusetts,US/PST045219]
+epsilon <- mean_daily_inc*underreporting*homeless_RR # adjusted transmission rate outside shelter
 
 # Flag for whether to count hospitalisations and deaths
 hospitalisation <- F # false as data not available
@@ -67,6 +81,12 @@ D_S <- NULL
 D_T <- 147 + 15 # number of positives in residents and staff during mass testing
 D_C <- NULL # set to NULL if no data available on symptom onsets
 
+# Set lower and upper bounds for R0 and convert to bounds for beta
+R0.low <- 1
+R0.upp <- 8
+beta.low <- 0.0005 #calc_beta(R0.low,w,Present,p_s,Risk,h,alpha,mu_p,mu_sx)
+beta.upp <- 0.002 #calc_beta(R0.upp,w,Present,p_s,Risk,h,alpha,mu_p,mu_sx)
+
 #  Lower and upper boundaries for priors
-lm.low <- c(1,1,14)
-lm.upp <- c(8,10,30)
+lm.low <- c(beta.low,1,14)
+lm.upp <- c(beta.upp,10,30)

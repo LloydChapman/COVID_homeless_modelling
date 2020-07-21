@@ -75,6 +75,7 @@ entry_PCR_test_compliance <- 0.8 # 80% compliance with PCR testing on entry
 
 # Routine PCR testing
 routine_PCR_test_compliance <- 0.8 # 1 # 80% compliance with routine PCR testing
+sx_pos_PCR_test_compliance <- 0.8 # 80% compliance with PCR testing among those who screen symptom positive
 
 # Mask wearing
 mask_compliance <- 0.8 # 1 # 80% compliance with universal masking
@@ -82,7 +83,7 @@ mask_eff <- 0.3 # 1 # 30% reduction in transmission from universal masking
 
 # Symptom screening sensitivity and specificity
 sens_sx <- c(NA,NA,NA,NA,NA,0.4,NA) # sensitivities for states 1 to 7
-spec_sx <- c(0.75,0.75,0.75,0.75,0.75,NA,0.75) # specificities for states 1 to 7
+spec_sx <- c(0.9,0.9,0.9,0.9,0.9,NA,0.9) # specificities for states 1 to 7
 # sens_sx <- c(NA,NA,NA,NA,NA,1,NA) # sensitivities for states 1 to 7
 # spec_sx <- c(1,1,1,1,1,NA,1) # specificities for states 1 to 7
 
@@ -121,8 +122,8 @@ for (i in 1:length(fnms)){
                   min_days_PCR_pos,max_days_PCR_pos,discrnorm,hospitalisation,fit,
                   fit_extrap,spec,testing_days,interventions,max_PCR_tests_per_week,
                   min_days_btw_tests,entry_PCR_test_compliance,routine_PCR_test_compliance,
-                  mask_compliance,mask_eff,sens_sx,spec_sx,Number,Resident,
-                  Age,res_present0,E0,run_nms[i])
+                  sx_pos_PCR_test_compliance,mask_compliance,mask_eff,sens_sx,spec_sx,Number,
+                  Resident,Age,res_present0,E0,run_nms[i])
   process_interventions(paste0("intvntn_sim_output",run_nms[i],".RData"),run_nms[i])
   plot_interventions(paste0("intvntn_sim_output",run_nms[i],".RData"),run_nms[i])
 }

@@ -21,9 +21,9 @@ COVID_homeless_intervention_model<-function(N_res,N_staff,N_pop,T_sim,w,beta,eps
                                             max_days_PCR_pos,discrnorm,hospitalisation,fit,fit_extrap,spec,
                                             testing_days,interventions,max_PCR_tests_per_week,min_days_btw_tests,
                                             entry_PCR_test_compliance,routine_PCR_test_compliance,
-                                            mask_compliance,mask_eff,sens_sx,spec_sx,Number,Resident,
-                                            Present,Risk,Age,e0ind,TrueState,DayTrueState,WaitingTime,
-                                            DaysSinceInfctn,DaysSinceInfctsnss,DaysPCRpos){
+                                            sx_pos_PCR_test_compliance,mask_compliance,mask_eff,sens_sx,spec_sx,
+                                            Number,Resident,Present,Risk,Age,e0ind,TrueState,DayTrueState,
+                                            WaitingTime,DaysSinceInfctn,DaysSinceInfctsnss,DaysPCRpos){
   
   # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
   # Population microsimulation 
@@ -190,7 +190,7 @@ COVID_homeless_intervention_model<-function(N_res,N_staff,N_pop,T_sim,w,beta,eps
     if (1 %in% interventions){
       HxSx_prev <- HxSx 
       for (i in 1:7){
-        list[HxSx,Tested,DayTested,PCRtests,PCRtestsWeek,ObsState,DayObsState,HxPCR,PCRpos,PCRpos_removed] <- sx_screening_update(i,TrueState,ObsState,Present,PCRtestsWeek,max_PCR_tests_per_week,min_days_btw_tests,sens_sx[i],spec_sx[i],HxSx,PCRtests,Tested,DayTested,spec[i],DaysSinceInfctsnss,fit,fit_extrap,max_days_PCR_pos,DayTrueState,DaysPCRpos,WaitingTime,DayObsState,HxPCR,PCRpos,t,PCRpos_removed)
+        list[HxSx,Tested,DayTested,PCRtests,PCRtestsWeek,ObsState,DayObsState,HxPCR,PCRpos,PCRpos_removed] <- sx_screening_update(i,TrueState,ObsState,Present,PCRtestsWeek,max_PCR_tests_per_week,min_days_btw_tests,sens_sx[i],spec_sx[i],HxSx,sx_pos_PCR_test_compliance,PCRtests,Tested,DayTested,spec[i],DaysSinceInfctsnss,fit,fit_extrap,max_days_PCR_pos,DayTrueState,DaysPCRpos,WaitingTime,DayObsState,HxPCR,PCRpos,t,PCRpos_removed)
       }
       sx_indvdls_isolated <- which(HxSx & !HxSx_prev) # individuals who screen positive for symptoms on this day 
       Present[sx_indvdls_isolated] <- F # immediately isolate individuals who screen symptom positive until test results are returned the next day

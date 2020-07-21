@@ -3,8 +3,8 @@ run_simulations <- function(R0,w,Present,p_s,Risk,h,alpha,mu_p,mu_sx,nsims,N_res
                             min_days_PCR_pos,max_days_PCR_pos,discrnorm,hospitalisation,fit,
                             fit_extrap,spec,testing_days,interventions,max_PCR_tests_per_week,
                             min_days_btw_tests,entry_PCR_test_compliance,routine_PCR_test_compliance,
-                            mask_compliance,mask_eff,sens_sx,spec_sx,Number,Resident,
-                            Age,res_present0,E0,run_nm){
+                            sx_pos_PCR_test_compliance,mask_compliance,mask_eff,sens_sx,spec_sx,Number,
+                            Resident,Age,res_present0,E0,run_nm){
   # Calculate beta
   beta <- calc_beta(R0,w,Present,p_s,Risk,h,alpha,mu_p,mu_sx)
   
@@ -60,9 +60,10 @@ run_simulations <- function(R0,w,Present,p_s,Risk,h,alpha,mu_p,mu_sx,nsims,N_res
                                                max_days_PCR_pos,discrnorm,hospitalisation,fit,fit_extrap,spec,
                                                testing_days,interventions[[j]],max_PCR_tests_per_week,
                                                min_days_btw_tests,entry_PCR_test_compliance,
-                                               routine_PCR_test_compliance,mask_compliance,mask_eff,sens_sx,spec_sx,
-                                               Number,Resident,Present,Risk,Age,e0ind,TrueState,DayTrueState,
-                                               WaitingTime,DaysSinceInfctn,DaysSinceInfctsnss,DaysPCRpos)
+                                               routine_PCR_test_compliance,sx_pos_PCR_test_compliance,
+                                               mask_compliance,mask_eff,sens_sx,spec_sx,Number,Resident,Present,
+                                               Risk,Age,e0ind,TrueState,DayTrueState,WaitingTime,DaysSinceInfctn,
+                                               DaysSinceInfctsnss,DaysPCRpos)
       infections_res[i,,j] <- res$infections
       cases_res[i,,j] <- res$cases
       total_infections_res[i,j] <- sum(res$infections)
@@ -95,5 +96,5 @@ run_simulations <- function(R0,w,Present,p_s,Risk,h,alpha,mu_p,mu_sx,nsims,N_res
   # row.names(total_cases_df)[nsims+1] <- "mean"
   write.csv(total_cases_df,paste0("total_cases_interventions",run_nm,".csv"))
   
-  save(infections_res,cases_res,infections_staff,cases_staff,infections,cases,total_infections_res,total_cases_res,total_infections_staff,total_cases_staff,total_infections,total_cases,file=paste0("intvntn_sim_output",run_nm,".RData"))
+  save(infections_res,cases_res,infections_staff,cases_staff,infections,cases,total_infections_res,total_cases_res,total_infections_staff,total_cases_staff,total_infections,total_cases,total_hospitalisations,total_deaths,PCRtests,file=paste0("intvntn_sim_output",run_nm,".RData"))
 }

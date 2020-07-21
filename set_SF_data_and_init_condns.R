@@ -52,7 +52,8 @@ names(tmp)[2] <- "PositiveTests"
 agg_PCR_sx_testing_data <- merge(agg_PCR_sx_testing_data,tmp,all.x = T)
 agg_PCR_sx_testing_data$PositiveTests[is.na(agg_PCR_sx_testing_data$PositiveTests)] <- 0
 
-tmp <- aggregate(ID ~ SymptomOnsetDate, linelist, length)
+# Count symptomatic individuals (exclude those with negative PCR results who reported having had symptoms at I & Q sites)
+tmp <- aggregate(ID ~ SymptomOnsetDate, linelist[!(linelist$Symptomatic=="Y_IQ" & linelist$Result=="negative"),], length)
 names(tmp)[2] <- "Cases"
 case_data <- data.frame(date = seq.Date(start_date,end_date,1),Cases=rep(0,as.integer(end_date-start_date+1)))
 case_data$Cases[case_data$date %in% tmp$SymptomOnsetDate] <- tmp$Cases[tmp$SymptomOnsetDate %in% case_data$date]
@@ -68,6 +69,15 @@ w <- rep(1,N_pop) #c(rep(1,N_res),rep(1/2,N_staff))
 
 # Set natural history parameters
 source("set_nat_hist_pars.R")
+
+# Set background transmission rate
+reporting_delay <- 7 # days from start of infectiousness = 2 days presymptomatic infectious + 5 days from symptom onset to reporting
+trnsmssn_window <- 21 # days
+underreporting <- 10 # under-reporting ratio for confirmed cases vs infections
+homeless_RR <- 2 # relative-risk of infection for homeless individuals
+mean_daily_cases <- mean(SF_case_data$Case.Count[SF_case_data$Date>=end_date-trnsmssn_window+reporting_delay & SF_case_data$Date<=end_date+reporting_delay]) # mean of confirmed cases for period of interest
+mean_daily_inc <- mean_daily_cases/881549 # population estimate from US Census Bureau [https://www.census.gov/quickfacts/sanfranciscocountycalifornia]
+epsilon <- mean_daily_inc*underreporting*homeless_RR # adjusted transmission rate outside shelter
 
 # Flag for whether to count hospitalisations and deaths
 hospitalisation <- F # false as data not available for MSC South outbreak
@@ -115,6 +125,12 @@ D_S <- agg_PCR_sx_testing_data$PositiveTests
 D_T <- agg_PCR_data$PositiveTests # number of positives in residents and staff in random testing
 D_C <- case_data$Cases # set to NULL if no data available on symptom onsets
 
+# Set lower and upper bounds for R0 and convert to bounds for beta
+R0.low <- 1
+R0.upp <- 8
+beta.low <- 0.0005 #calc_beta(R0.low,w,Present,p_s,Risk,h,alpha,mu_p,mu_sx)
+beta.upp <- 0.002 #calc_beta(R0.upp,w,Present,p_s,Risk,h,alpha,mu_p,mu_sx)
+  
 #  Lower and upper boundaries for priors
-lm.low <- c(1,1,14)
-lm.upp <- c(8,10,30)
+lm.low <- c(beta.low,1,14)
+lm.upp <- c(beta.upp,10,30)

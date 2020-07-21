@@ -30,14 +30,18 @@ n <- 1
 
 # Number of parameters and parameter names
 npar <- length(lm.low)
-parnames <- c("R0","E0","T")
+parnames <- c("beta","E0","T")
+# parnames <- c("R0","E0","T")
 # Indices of continuous and discrete parameters
 cpar <- 1
 dpar <- 2:3
 ncpar <- length(cpar)
 
-# Fixed variance for R0 proposals
-sigma <- 2
+# Fixed variance for beta proposals (converted from fixed proposal variance for R0)
+sigma_R0 <- 1
+sigma <- calc_beta(sqrt(sigma_R0),w,Present,p_s,Risk,h,alpha,mu_p,mu_sx)^2
+# # Fixed variance for R0 proposals
+# sigma <- 2
 
 # Empty matrices to store results (population x number of model parameters)
 res.old <- matrix(nrow=N,ncol=npar)
@@ -82,8 +86,9 @@ for(g in 1:G){
    	  # start_time <- Sys.time()
    	  E0_star <- sample(lm.low[2]:lm.upp[2],1) #round(runif(1, min=lm.low[2], max=lm.upp[2])) #
    	  T_sim_star <- sample(lm.low[3]:lm.upp[3],1) #round(runif(1, min=lm.low[3], max=lm.upp[3])) #
-   	  R0_star <- runif(1, min=lm.low[1], max=lm.upp[1])
-			beta_star <- calc_beta(R0_star,w,Present,p_s,Risk,h,alpha,mu_p,mu_sx)
+   	  beta_star <- runif(1, min=lm.low[1], max=lm.upp[1])
+   	  # R0_star <- runif(1, min=lm.low[1], max=lm.upp[1])
+			# beta_star <- calc_beta(R0_star,w,Present,p_s,Risk,h,alpha,mu_p,mu_sx)
 			# end_time <- Sys.time()
 			# print(end_time - start_time)
 		} else {
@@ -97,16 +102,18 @@ for(g in 1:G){
 	      p <- resample(idx,1,prob=w.old[idx])
 	      # sigma <- Sigma[[p]]
 	      par <- rK(res.old[p,cpar],sigma,lm.low,lm.upp)
-	      R0_star <- par[1]
-	      beta_star <- calc_beta(R0_star,w,Present,p_s,Risk,h,alpha,mu_p,mu_sx)
+	      beta_star <- par[1]
+	      # R0_star <- par[1]
+	      # beta_star <- calc_beta(R0_star,w,Present,p_s,Risk,h,alpha,mu_p,mu_sx)
 	    }
 			# end_time <- Sys.time()
 			# print(end_time - start_time)
 		}
 	  # Test if there are any remaining particles with the proposed values of the discrete parameters
-	  if (g==1 | (g>1 & length(idx)!=0)){
+	  if (g==1 || (g>1 & length(idx)!=0)){
     	#  Test if prior non zero
-    	if(prior.non.zero(c(R0_star,E0_star,T_sim_star),lm.low,lm.upp)) {
+	    if(prior.non.zero(c(beta_star,E0_star,T_sim_star),lm.low,lm.upp)) {
+	    # if(prior.non.zero(c(R0_star,E0_star,T_sim_star),lm.low,lm.upp)) {
   			# Set number of accepted simulations to zero
   			m <- 0
   			if(is.null(D_C)){ # 2 columns if no symptom onset data available, else 3 columns
@@ -180,7 +187,8 @@ for(g in 1:G){
     		  # Update counter of accepted particles
     		  i <- i+1
     		  # Store results
-  				res.new[i,] <- c(R0_star,E0_star,T_sim_star)
+    		  res.new[i,] <- c(beta_star,E0_star,T_sim_star)
+    		  # res.new[i,] <- c(R0_star,E0_star,T_sim_star)
   				# res_list[[i]] <- res
   				infections_list[[i]] <- res$infections
   				cases_list[[i]] <- res$cases
@@ -241,7 +249,11 @@ for(g in 1:G){
   acc_rate[g] <- i/k
   cat("Acceptance rate for generation ", g, ": ", round(acc_rate[g],2), "\n", sep = "")
 
-  write.csv(res.new, file = paste("results_ABC_SMC_MNN_gen_",g,run_nm,".csv",sep=""), row.names=FALSE)
+  # Calculate R0 estimates and add to output
+  res.new1 <- cbind(res.new,R0=rep(NA,N))
+  res.new1[,npar+1] <- sapply(1:N,function(i) calc_R0(res.new[i,1],w,Present,p_s,Risk,h,alpha,mu_p,mu_sx))
+  # Save estimates from generation g
+  write.csv(res.new1, file = paste("results_ABC_SMC_MNN_gen_",g,run_nm,".csv",sep=""), row.names=FALSE)
 }
 
 # Calculate ESS

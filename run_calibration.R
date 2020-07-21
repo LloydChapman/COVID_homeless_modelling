@@ -19,12 +19,12 @@ source("plot_calibration2.R")
 source("process_calibration.R")
 
 # Run ABC for SF
-ABC_SMC_MNN("SF","_16")
+ABC_SMC_MNN("SF","_SF_19")
 
 # Run ABC for Seattle
-ABC_SMC_MNN("Seattle_A","_Seattle_A_6")
-ABC_SMC_MNN("Seattle_B","_Seattle_B_6")
-ABC_SMC_MNN("Seattle_C","_Seattle_C_6")
+ABC_SMC_MNN("Seattle_A","_Seattle_A_9")
+ABC_SMC_MNN("Seattle_B","_Seattle_B_9")
+ABC_SMC_MNN("Seattle_C","_Seattle_C_9")
 
 # Run ABC for Boston
-ABC_SMC_MNN("Boston","_Boston_5")
+ABC_SMC_MNN("Boston","_Boston_8")

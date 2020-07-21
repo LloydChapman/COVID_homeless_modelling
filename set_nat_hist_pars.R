@@ -35,7 +35,7 @@ discrnorm <- discrnorm/sum(discrnorm) # normalise
 # plot(min_days_PCR_pos:max_days_PCR_pos,discrnorm,xlab = "Duration of detectable viral load following start of infectiousness (days)", ylab = "Prob",pch=19) #, main = "Distribution of duration of detectable viral load")
 # dev.off()
 
-# epsilon <- (62/2959)/mean_days_PCR_pos * 2 #0 #0.001 # mean_daily_inc/0.14 # transmission rate outside shelter assuming 1/0.14=7.1x as many infections as confirmed cases from Li Science 2020 - [ ] consider making this time-dependent
-mean_daily_cases <- mean(SF_case_data$Case.Count[SF_case_data$Date>=as.Date("3/28/2020",format="%m/%d/%Y") & SF_case_data$Date<=as.Date("4/10/2020",format="%m/%d/%Y")]) # mean of confirmed cases for period of interest
-mean_daily_inc <- mean_daily_cases/881549 # population estimate from US Census Bureau [https://www.census.gov/quickfacts/sanfranciscocountycalifornia]
-epsilon <- mean_daily_inc/0.14 # transmission rate outside shelter assuming 1/0.14=7.1x as many infections as confirmed cases from Li Science 2020
+# # epsilon <- (62/2959)/mean_days_PCR_pos * 2 #0 #0.001 # mean_daily_inc/0.14 # transmission rate outside shelter assuming 1/0.14=7.1x as many infections as confirmed cases from Li Science 2020 - [ ] consider making this time-dependent
+# mean_daily_cases <- mean(SF_case_data$Case.Count[SF_case_data$Date>=as.Date("3/28/2020",format="%m/%d/%Y") & SF_case_data$Date<=as.Date("4/10/2020",format="%m/%d/%Y")]) # mean of confirmed cases for period of interest
+# mean_daily_inc <- mean_daily_cases/881549 # population estimate from US Census Bureau [https://www.census.gov/quickfacts/sanfranciscocountycalifornia]
+# epsilon <- mean_daily_inc/0.14 # transmission rate outside shelter assuming 1/0.14=7.1x as many infections as confirmed cases from Li Science 2020
