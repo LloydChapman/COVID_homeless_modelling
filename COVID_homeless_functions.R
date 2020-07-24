@@ -1,12 +1,12 @@
 calc_R0 <- function(beta,w,Present,p_s,Risk,h,alpha,mu_p,mu_sx){
-  R0 <- beta*sum(w*Present*(((1-p_s[Risk])*h+p_s[Risk])*(alpha*mu_p+mu_sx)))
-  # R0 <- beta*sum(w*Present*(((1-p_s[Risk])*h+p_s[Risk])*(alpha*mu_p+mu_sx)))/sum(w*Present)
+  # R0 <- beta*sum(w*Present*(((1-p_s[Risk])*h+p_s[Risk])*(alpha*mu_p+mu_sx)))
+  R0 <- beta*sum(w*Present*(((1-p_s[Risk])*h+p_s[Risk])*(alpha*mu_p+mu_sx)))/sum(w*Present)
   return(R0)
 }
 
 calc_beta <- function(R0,w,Present,p_s,Risk,h,alpha,mu_p,mu_sx){
-  beta <- R0/sum(w*Present*(((1-p_s[Risk])*h+p_s[Risk])*(alpha*mu_p+mu_sx)))
-  # beta <- R0*sum(w*Present)/sum(w*Present*(((1-p_s[Risk])*h+p_s[Risk])*(alpha*mu_p+mu_sx)))
+  # beta <- R0/sum(w*Present*(((1-p_s[Risk])*h+p_s[Risk])*(alpha*mu_p+mu_sx)))
+  beta <- R0*sum(w*Present)/sum(w*Present*(((1-p_s[Risk])*h+p_s[Risk])*(alpha*mu_p+mu_sx)))
   return(beta)
 }
 
@@ -44,10 +44,10 @@ iterate <- function(TrueState,Present,DayTrueState,DayObsState,DaysSinceInfctn,D
   # Count numbers in different states inside shelter
   S <- sum(s & Present)
   E <- sum(e & Present)
-  I_m_p <- sum(i_m_p & Present)
-  I_s_p <- sum(i_s_p & Present)
-  I_m_sx <- sum(i_m_sx & Present)
-  I_s_sx <- sum(i_s_sx & Present)
+  I_m_p <- sum(w*(i_m_p & Present))
+  I_s_p <- sum(w*(i_s_p & Present))
+  I_m_sx <- sum(w*(i_m_sx & Present))
+  I_s_sx <- sum(w*(i_s_sx & Present))
   R <- sum(r & Present)
   
   # Advance time by one day - [ ] Think carefully about whether this should be at start or end of loop
@@ -60,8 +60,8 @@ iterate <- function(TrueState,Present,DayTrueState,DayObsState,DaysSinceInfctn,D
   DaysSinceInfctsnss[i_m_p|i_s_p|i_m_sx|i_s_sx|r] <- DaysSinceInfctsnss[i_m_p|i_s_p|i_m_sx|i_s_sx|r] + 1
   
   # Step 1: S -> E (infection)
-  lambda <- beta*Present*w*(h*(alpha*I_m_p+I_m_sx)+alpha*I_s_p+I_s_sx) + epsilon
-  # lambda <- beta*Present*w*(h*(alpha*I_m_p+I_m_sx)+alpha*I_s_p+I_s_sx)/sum(Present*w) + epsilon # Only individuals present in the shelter can be infected by others in the shelter, those not present can be infected by infectious individuals in the general population
+  # lambda <- beta*Present*w*(h*(alpha*I_m_p+I_m_sx)+alpha*I_s_p+I_s_sx) + epsilon
+  lambda <- beta*Present*w*(h*(alpha*I_m_p+I_m_sx)+alpha*I_s_p+I_s_sx)/sum(Present*w) + epsilon # Only individuals present in the shelter can be infected by others in the shelter, those not present can be infected by infectious individuals in the general population
   # print(which(e))
   # print(E)
   # print(mean(lambda))

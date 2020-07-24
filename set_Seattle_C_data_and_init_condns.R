@@ -81,12 +81,6 @@ D_S <- NULL
 D_T <- c(6 + 0,10 + 1) # number of positives in residents and staff during mass testing
 D_C <- NULL # set to NULL if no data available on symptom onsets
 
-# Set lower and upper bounds for R0 and convert to bounds for beta
-R0.low <- 1
-R0.upp <- 8
-beta.low <- 0.0005 #calc_beta(R0.low,w,Present,p_s,Risk,h,alpha,mu_p,mu_sx)
-beta.upp <- 0.002 #calc_beta(R0.upp,w,Present,p_s,Risk,h,alpha,mu_p,mu_sx)
-
-#  Lower and upper boundaries for priors
-lm.low <- c(beta.low,1,14)
-lm.upp <- c(beta.upp,10,30)
+#  Lower and upper boundaries for priors for R0, E0 and T
+lm.low <- c(1,1,14)
+lm.upp <- c(8,10,30)
