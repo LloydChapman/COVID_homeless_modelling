@@ -68,8 +68,9 @@ COVID_homeless_intervention_model<-function(N_res,N_staff,N_pop,T_sim,w,beta,eps
   HxAb <- rep(F,N_pop) # has tested positive for antibodies
   HxSx <- rep(F,N_pop) # has screened positive for symptoms
   NewInfection <- rep(0,N_pop)
+  Background <- rep(0,N_pop) # was infected outside the shelter
   
-  sim_pop0 <- data.frame(cbind(Number, Resident, Risk, TrueState, DayTrueState, WaitingTime, DaysSinceInfctn, DaysSinceInfctsnss, DaysPCRpos, Hospitalised, Dead, ObsState, DayObsState, Tested, DayTested, PCRtests, PCRtestsWeek, HxPCR, DayRemoved, HxAb, HxSx, NewInfection))
+  sim_pop0 <- data.frame(cbind(Number, Resident, Risk, TrueState, DayTrueState, WaitingTime, DaysSinceInfctn, DaysSinceInfctsnss, DaysPCRpos, Hospitalised, Dead, ObsState, DayObsState, Tested, DayTested, PCRtests, PCRtestsWeek, HxPCR, DayRemoved, HxAb, HxSx, NewInfection, Background))
   
   # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
   # Decision trees
@@ -81,10 +82,14 @@ COVID_homeless_intervention_model<-function(N_res,N_staff,N_pop,T_sim,w,beta,eps
   # Note: Each person has a "true state" (susceptible, exposed, presymptomatic infectious (mild/severe), symptomatic infectious (mild/severe), recovered) and an "observed state" (non-immune, infected or immune)
   
   # Create objects for storing simulation output
-  infections <- rep(0,T_sim)
-  cases <- rep(0,T_sim)
+  infections_res <- rep(0,T_sim)
+  cases_res <- rep(0,T_sim)
   infections_staff <- rep(0,T_sim)
   cases_staff <- rep(0,T_sim)
+  bckgrnd_infections_res <- rep(0,T_sim)
+  bckgrnd_cases_res <- rep(0,T_sim)
+  bckgrnd_infections_staff <- rep(0,T_sim)
+  bckgrnd_cases_staff <- rep(0,T_sim)
   PCRpos <- rep(0,T_sim)
   state <- matrix(NA, nrow = N_pop, ncol = T_sim)
   state[,1] <- TrueState
@@ -131,7 +136,7 @@ COVID_homeless_intervention_model<-function(N_res,N_staff,N_pop,T_sim,w,beta,eps
     #   11- True new infection
 
     # Update states of individuals based on transmission on previous day
-    list[TrueState,DayTrueState,DayObsState,WaitingTime,DaysSinceInfctn,DaysSinceInfctsnss,NewInfection,DaysPCRpos,infections[t],cases[t],infections_staff[t],cases_staff[t]] <- iterate(TrueState,Present,DayTrueState,DayObsState,DaysSinceInfctn,DaysSinceInfctsnss,beta,w,h,alpha,epsilon,N_pop,WaitingTime,r_E,p_E,e0ind,Risk,p_s,r_p,p_p,NewInfection,DaysPCRpos,min_days_PCR_pos,max_days_PCR_pos,discrnorm,Resident,hospitalisation,Hospitalised,Dead,p_h,p_ICU,p_d)
+    list[TrueState,DayTrueState,DayObsState,WaitingTime,DaysSinceInfctn,DaysSinceInfctsnss,NewInfection,Background,DaysPCRpos,infections_res[t],cases_res[t],infections_staff[t],cases_staff[t],Hospitalised,Dead,bckgrnd_infections_res[t],bckgrnd_cases_res[t],bckgrnd_infections_staff[t],bckgrnd_cases_staff[t]] <- iterate(TrueState,Present,DayTrueState,DayObsState,DaysSinceInfctn,DaysSinceInfctsnss,beta,w,h,alpha,epsilon,N_pop,WaitingTime,r_E,p_E,e0ind,Risk,p_s,r_p,p_p,NewInfection,Background,DaysPCRpos,min_days_PCR_pos,max_days_PCR_pos,discrnorm,Resident,hospitalisation,Hospitalised,Dead,p_h,p_ICU,p_d)
     
     # Store true states of individuals on day t
     state[,t] <- TrueState
@@ -228,6 +233,6 @@ COVID_homeless_intervention_model<-function(N_res,N_staff,N_pop,T_sim,w,beta,eps
     }
   }
   
-  sim_pop <- data.frame(cbind(Number, Resident, Present, Age, Risk, TrueState, DayTrueState, WaitingTime, DaysSinceInfctn, DaysSinceInfctsnss, DaysPCRpos, Hospitalised, Dead, ObsState, DayObsState, Tested, DayTested, PCRtests, PCRtestsWeek, HxPCR, DayRemoved, HxAb, HxSx, NewInfection))
-  return(res=list(infections=infections,cases=cases,infections_staff=infections_staff,cases_staff=cases_staff,PCRpos=PCRpos,sim_pop=sim_pop,state=state,presence=presence))
+  sim_pop <- data.frame(cbind(Number, Resident, Present, Age, Risk, TrueState, DayTrueState, WaitingTime, DaysSinceInfctn, DaysSinceInfctsnss, DaysPCRpos, Hospitalised, Dead, ObsState, DayObsState, Tested, DayTested, PCRtests, PCRtestsWeek, HxPCR, DayRemoved, HxAb, HxSx, NewInfection, Background))
+  return(res=list(infections_res=infections_res,cases_res=cases_res,infections_staff=infections_staff,cases_staff=cases_staff,bckgrnd_infections_res=bckgrnd_infections_res,bckgrnd_cases_res=bckgrnd_cases_res,bckgrnd_infections_staff=bckgrnd_infections_staff,bckgrnd_cases_staff=bckgrnd_cases_staff,PCRpos=PCRpos,sim_pop=sim_pop,state=state,presence=presence))
 }

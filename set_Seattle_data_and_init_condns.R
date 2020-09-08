@@ -84,4 +84,4 @@ D_C <- NULL # set to NULL if no data available on symptom onsets
 
 #  Lower and upper boundaries for priors for R0, E0 and T
 lm.low <- c(1,1,14)
-lm.upp <- c(8,10,30)
+lm.upp <- c(8,5,30)

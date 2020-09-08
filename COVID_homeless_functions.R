@@ -10,6 +10,13 @@ calc_beta <- function(R0,w,Present,p_s,Risk,h,alpha,mu_p,mu_sx){
   return(beta)
 }
 
+calc_epsilon <- function(case_data,start_date,end_date,pop,underreporting,homeless_RR){
+  mean_daily_cases <- sum(case_data$Cases[case_data$Date>=start_date & case_data$Date<=end_date])/as.numeric(end_date-start_date+1)
+  mean_daily_inc <- mean_daily_cases/pop
+  epsilon <- mean_daily_inc*underreporting*homeless_RR
+  return(epsilon)
+}
+
 # PCR sensitivity as a function of time since start of infectiousness
 sens <- function(x,fit,fit_extrap,max_days_PCR_pos){
   # res <- rep(1,length(x))
@@ -25,13 +32,15 @@ sens <- function(x,fit,fit_extrap,max_days_PCR_pos){
   # #   res[idx1[i]] <- max(fit_extrap$y[fit_extrap$x==x[idx1[i]]],0)
   # # }
   # idx1 <- (x>x1 & x<=max_days_PCR_pos)
-  # res[idx1] <- pmax(sapply(x[idx1],function(x) fit_extrap$y[fit_extrap$x==x]),0)
+  # if (any(idx1)){
+  #   res[idx1] <- pmax(sapply(x[idx1],function(x) fit_extrap$y[fit_extrap$x==x]),0) # ensure sensitivity is non-negative
+  # }
   return(res)
 }
 
 resample <- function(x,...) x[sample.int(length(x),...)]
 
-iterate <- function(TrueState,Present,DayTrueState,DayObsState,DaysSinceInfctn,DaysSinceInfctsnss,beta,w,h,alpha,epsilon,N_pop,WaitingTime,r_E,p_E,e0ind,Risk,p_s,r_p,p_p,NewInfection,DaysPCRpos,min_days_PCR_pos,max_days_PCR_pos,discrnorm,Resident,hospitalisation = F,Hospitalised = NULL,Dead = NULL,p_h = NULL,p_ICU = NULL,p_d = NULL){
+iterate <- function(TrueState,Present,DayTrueState,DayObsState,DaysSinceInfctn,DaysSinceInfctsnss,beta,w,h,alpha,epsilon,N_pop,WaitingTime,r_E,p_E,e0ind,Risk,p_s,r_p,p_p,NewInfection,Background,DaysPCRpos,min_days_PCR_pos,max_days_PCR_pos,discrnorm,Resident,hospitalisation = F,Hospitalised = NULL,Dead = NULL,p_h = NULL,p_ICU = NULL,p_d = NULL){
   # Create index variables
   s <- (TrueState == 1)
   e <- (TrueState == 2)
@@ -68,7 +77,8 @@ iterate <- function(TrueState,Present,DayTrueState,DayObsState,DaysSinceInfctn,D
   # print(paste0("sum(lambda)=",sum(lambda)))
   prob_infection <- 1-exp(-lambda)
   s2e <- (s & runif(N_pop)<prob_infection)
-  NewInfection[s2e] <- 1 # Count new infections 
+  NewInfection[s2e] <- 1 # Count new infections
+  Background[s2e] <- (runif(sum(s2e)) < epsilon/lambda[s2e])
   
   TrueState[s2e] <- 2 # Update true state based on transmission/natural history
   DayTrueState[s2e] <- 0 # Re-set day in true state
@@ -121,14 +131,24 @@ iterate <- function(TrueState,Present,DayTrueState,DayObsState,DaysSinceInfctn,D
   }
   
   # Count number of new infections in residents and staff
-  infections <- sum(s2e & Resident==1)
+  infections_res <- sum(s2e & Resident==1)
   infections_staff <- sum(s2e & Resident==0)
+  bckgrnd_infections_res <- sum(s2e & Resident==1 & Background)
+  bckgrnd_infections_staff <- sum(s2e & Resident==0 & Background)
   
   # Count number of new clinical cases in residents and staff
-  cases <- sum(i_p2i_sx & i_s_p & Resident==1)
+  cases_res <- sum(i_p2i_sx & i_s_p & Resident==1)
   cases_staff <- sum(i_p2i_sx & i_s_p & Resident==0)
+  bckgrnd_cases_res <- sum(i_p2i_sx & i_s_p & Resident==1 & Background)
+  bckgrnd_cases_staff <- sum(i_p2i_sx & i_s_p & Resident==0 & Background)
   
-  return(list(TrueState=TrueState,DayTrueState=DayTrueState,DayObsState=DayObsState,WaitingTime=WaitingTime,DaysSinceInfctn=DaysSinceInfctn,DaysSinceInfctsnss=DaysSinceInfctsnss,NewInfection=NewInfection,DaysPCRpos=DaysPCRpos,infections=infections,cases=cases,infections_staff=infections_staff,cases_staff=cases_staff,Hospitalised=Hospitalised,Dead=Dead))
+  return(list(TrueState=TrueState,DayTrueState=DayTrueState,DayObsState=DayObsState,
+              WaitingTime=WaitingTime,DaysSinceInfctn=DaysSinceInfctn,DaysSinceInfctsnss=DaysSinceInfctsnss,
+              NewInfection=NewInfection,Background=Background,DaysPCRpos=DaysPCRpos,
+              infections_res=infections_res,cases_res=cases_res,infections_staff=infections_staff,
+              cases_staff=cases_staff,Hospitalised=Hospitalised,Dead=Dead,
+              bckgrnd_infections_res=bckgrnd_infections_res,bckgrnd_cases_res=bckgrnd_cases_res,
+              bckgrnd_infections_staff=bckgrnd_infections_staff,bckgrnd_cases_staff=bckgrnd_cases_staff))
 
 }
 
@@ -218,3 +238,66 @@ routine_PCR_testing_update <- function(state,TrueState,ObsState,Present,PCRtests
   list[Tested,DayTested,ObsState,DayObsState,HxPCR,PCRpos,PCRpos_removed] <- PCR_testing_update(Tested,DayTested,idx,state,spec,DaysSinceInfctsnss,fit,fit_extrap,max_days_PCR_pos,DayTrueState,DaysPCRpos,WaitingTime,ObsState,DayObsState,HxPCR,PCRpos,t,PCRpos_removed)
   return(list(PCRtests=PCRtests,PCRtestsWeek=PCRtestsWeek,Tested=Tested,DayTested=DayTested,ObsState=ObsState,DayObsState=DayObsState,HxPCR=HxPCR,PCRpos=PCRpos,PCRpos_removed=PCRpos_removed))
 }
+
+calc_cum_infection_inc <- function(fnm,N_pop,probs){
+  load(fnm)
+  total_infections <- numeric(length(infections_list))
+  for (i in 1:length(infections_list)){
+    total_infections[i] <- sum(infections_list[[i]])
+  }
+  cum_inc <- total_infections/N_pop
+  hist(cum_inc)
+  q_cum_inc <- quantile(cum_inc,probs = c(0.5,0.025,0.975)) 
+  return(q_cum_inc)
+}
+
+# Function to calculate percentage reductions in total infections, cases, hospitalisations and deaths due to interventions
+calc_perc_reduction <- function(y,probs){
+  perc_reduction <- 100*apply(y[,2:ncol(y)],2,function(x){(y[,1]-x)/y[,1]})
+  perc_reduction[y[,1]==0,] <- 0
+  q_reduction <- t(apply(perc_reduction,2,function(x){quantile(x,probs = probs,na.rm = T)}))
+  return(list(perc_reduction=perc_reduction,q_reduction=q_reduction))
+}
+
+# Function to calculate percentage of outbreaks "averted": number of
+# simulations with no new infections for each intervention strategy out of
+# number of simulations with no interventions in which there was an outbreak
+calc_perc_outbreaks_averted <- function(y){
+  perc_outbreaks_averted <- 100*colSums(y[,2:ncol(y)]<3)/sum(y[,1]>=3)
+  return(perc_outbreaks_averted)
+}
+
+# Function to calculate probability of averting outbreak: proportion of no-intervention
+# simulations with an outbreak (>=3 cases in any 14-day period) in which there was no 
+# outbreak (no more than 2 cases in any 14-day period) in the intervention simulation 
+# for each intervention strategy
+calc_prob_outbreak_averted <- function(infections,bckgrnd_infections){
+  shelter_infections <- infections - bckgrnd_infections
+  tmp <- array(dim = dim(shelter_infections))
+  tmp1 <- matrix(nrow = dim(shelter_infections)[1],ncol = dim(shelter_infections)[3])
+  for (k in 1:dim(shelter_infections)[3]){
+    for (i in 1:dim(shelter_infections)[1]){
+      for (j in 1:dim(shelter_infections)[2]){
+        tmp[i,j,k] <- (sum(shelter_infections[i,max(1,j-6):min(j+7,dim(shelter_infections)[2]),k])>=3)
+      }
+      tmp1[i,k] <- any(tmp[i,,k])
+    }  
+  }
+  # prob_outbreak_averted <- colSums(!tmp1[,2:ncol(tmp1)])/sum(tmp1[,1])
+  prob_outbreak_averted <- apply(apply(tmp1[,2:ncol(tmp1),drop=F],2,function(x){!x & tmp1[,1]}),2,sum)/sum(tmp1[,1])
+  return(prob_outbreak_averted)
+}
+
+calc_PCR_tests_used <- function(PCRtests,T_sim){
+  PCR_tests_used <- data.frame(mean_tests_per_person = apply(PCRtests[,,2:dim(PCRtests)[3],drop=F],3,mean))
+  PCR_tests_used$mean_total_tests <- apply(apply(PCRtests[,,2:dim(PCRtests)[3],drop=F],c(2,3),sum),2,mean)
+  PCR_tests_used$mean_daily_tests <- PCR_tests_used$mean_total_tests/T_sim
+  
+  return(PCR_tests_used)
+}
+
+gg_color_hue <- function(n) {
+  hues = seq(15, 375, length = n + 1)
+  hcl(h = hues, l = 65, c = 100)[1:n]
+}
+

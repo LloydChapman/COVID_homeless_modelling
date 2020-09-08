@@ -17,6 +17,9 @@ mass_testing_end_date <- as.Date("4/9/2020", format = "%m/%d/%Y")
 mass_testing_start_day <- as.integer(mass_testing_start_date-start_date+1)
 mass_testing_end_day <- as.integer(mass_testing_end_date-start_date+1)
 
+# Date first case identified
+date_first_case <- as.Date("4/5/2020",format = "%m/%d/%Y")
+
 # Load SF data from SF DPH [https://data.sfgov.org/COVID-19/COVID-19-Cases-Summarized-by-Date-Transmission-and/tvq9-ec9w]
 SF_data <- read.csv("../Data/COVID-19_Cases_Summarized_by_Date__Transmission_and_Case_Disposition.csv",stringsAsFactors = F)
 # Remove deaths
@@ -127,4 +130,4 @@ D_C <- case_data$Cases # set to NULL if no data available on symptom onsets
 
 #  Lower and upper boundaries for priors for R0, E0 and T
 lm.low <- c(1,1,14)
-lm.upp <- c(8,10,30)
+lm.upp <- c(8,5,30)

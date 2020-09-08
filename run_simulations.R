@@ -4,7 +4,7 @@ run_simulations <- function(R0,w,Present,p_s,Risk,h,alpha,mu_p,mu_sx,nsims,N_res
                             fit_extrap,spec,testing_days,interventions,max_PCR_tests_per_week,
                             min_days_btw_tests,entry_PCR_test_compliance,routine_PCR_test_compliance,
                             sx_pos_PCR_test_compliance,mask_compliance,mask_eff,sens_sx,spec_sx,Number,
-                            Resident,Age,res_present0,E0,run_nm){
+                            Resident,Age,res_present0,E0,run_nm,dir=""){
   # Calculate beta
   beta <- calc_beta(R0,w,Present,p_s,Risk,h,alpha,mu_p,mu_sx)
   
@@ -40,6 +40,12 @@ run_simulations <- function(R0,w,Present,p_s,Risk,h,alpha,mu_p,mu_sx,nsims,N_res
   infections_staff <- array(NA,c(nsims,T_sim,length(interventions)))
   cases_staff <- array(NA,c(nsims,T_sim,length(interventions)))
   
+  # Arrays to store number of infections and clinical cases over time from outside shelter from each simulation
+  bckgrnd_infections_res <- array(NA,c(nsims,T_sim,length(interventions)))
+  bckgrnd_cases_res <- array(NA,c(nsims,T_sim,length(interventions)))
+  bckgrnd_infections_staff <- array(NA,c(nsims,T_sim,length(interventions)))
+  bckgrnd_cases_staff <- array(NA,c(nsims,T_sim,length(interventions)))
+  
   # Matrices to store total number of infections, clinical cases, hospitalisations and deaths from each simulation
   total_infections_res <- matrix(NA,nsims,length(interventions))
   total_cases_res <- matrix(NA,nsims,length(interventions))
@@ -64,12 +70,16 @@ run_simulations <- function(R0,w,Present,p_s,Risk,h,alpha,mu_p,mu_sx,nsims,N_res
                                                mask_compliance,mask_eff,sens_sx,spec_sx,Number,Resident,Present,
                                                Risk,Age,e0ind,TrueState,DayTrueState,WaitingTime,DaysSinceInfctn,
                                                DaysSinceInfctsnss,DaysPCRpos)
-      infections_res[i,,j] <- res$infections
-      cases_res[i,,j] <- res$cases
-      total_infections_res[i,j] <- sum(res$infections)
-      total_cases_res[i,j] <- sum(res$cases)
-      infections_staff[i,,j] <- res$infections
-      cases_staff[i,,j] <- res$cases
+      infections_res[i,,j] <- res$infections_res
+      cases_res[i,,j] <- res$cases_res
+      bckgrnd_infections_res[i,,j] <- res$bckgrnd_infections_res
+      bckgrnd_cases_res[i,,j] <- res$bckgrnd_cases_res
+      total_infections_res[i,j] <- sum(res$infections_res)
+      total_cases_res[i,j] <- sum(res$cases_res)
+      infections_staff[i,,j] <- res$infections_staff
+      cases_staff[i,,j] <- res$cases_staff
+      bckgrnd_infections_staff[i,,j] <- res$bckgrnd_infections_staff
+      bckgrnd_cases_staff[i,,j] <- res$bckgrnd_cases_staff
       total_infections_staff[i,j] <- sum(res$infections_staff)
       total_cases_staff[i,j] <- sum(res$cases_staff)
       total_hospitalisations[i,j] <- sum(res$sim_pop$Hospitalised)
@@ -77,11 +87,13 @@ run_simulations <- function(R0,w,Present,p_s,Risk,h,alpha,mu_p,mu_sx,nsims,N_res
       PCRtests[,i,j] <- res$sim_pop$PCRtests
     }  
   }
-  
-  total_infections <- total_infections_res + total_infections_staff
-  total_cases <- total_cases_res + total_cases_staff
+
   infections <- infections_res + infections_staff
   cases <- cases_res + cases_staff
+  bckgrnd_infections <- bckgrnd_infections_res + bckgrnd_infections_staff
+  bckgrnd_cases <- bckgrnd_cases_res + bckgrnd_cases_staff
+  total_infections <- total_infections_res + total_infections_staff
+  total_cases <- total_cases_res + total_cases_staff
   
   print(colMeans(total_infections))
   
@@ -90,11 +102,17 @@ run_simulations <- function(R0,w,Present,p_s,Risk,h,alpha,mu_p,mu_sx,nsims,N_res
   total_infections_df <- data.frame(total_infections)
   names(total_infections_df) <- c("NoIntervention",sapply(1:(length(interventions)-1),function(x) paste0("Strategy",x)))
   # row.names(total_infections_df)[nsims+1] <- "mean"
-  write.csv(total_infections_df,paste0("total_infections_interventions",run_nm,".csv"))
+  if (dir!=""){
+    dir.create(dir,recursive = T)
+  }
+  write.csv(total_infections_df,paste0(dir,"total_infections_interventions",run_nm,".csv"))
   total_cases_df <- data.frame(total_cases)
   names(total_cases_df) <- c("NoIntervention",sapply(1:(length(interventions)-1),function(x) paste0("Strategy",x)))
   # row.names(total_cases_df)[nsims+1] <- "mean"
-  write.csv(total_cases_df,paste0("total_cases_interventions",run_nm,".csv"))
+  write.csv(total_cases_df,paste0(dir,"total_cases_interventions",run_nm,".csv"))
   
-  save(infections_res,cases_res,infections_staff,cases_staff,infections,cases,total_infections_res,total_cases_res,total_infections_staff,total_cases_staff,total_infections,total_cases,total_hospitalisations,total_deaths,PCRtests,file=paste0("intvntn_sim_output",run_nm,".RData"))
+  save(infections_res,cases_res,infections_staff,cases_staff,bckgrnd_infections_res,bckgrnd_cases_res,bckgrnd_infections_staff,bckgrnd_cases_staff,infections,cases,bckgrnd_infections,bckgrnd_cases,total_infections_res,total_cases_res,total_infections_staff,total_cases_staff,total_infections,total_cases,total_hospitalisations,total_deaths,PCRtests,file=paste0(dir,"intvntn_sim_output",run_nm,".RData"))
+  
+  # # Return arrays of numbers of infections and background infections
+  # return(list(infections=infections,bckgrnd_infections=bckgrnd_infections))
 }

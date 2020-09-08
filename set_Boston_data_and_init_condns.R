@@ -18,10 +18,13 @@ SF_CCMS_data[is.na(SF_CCMS_data)] <- 0
 start_date <- as.Date("4/2/2020",format = "%m/%d/%Y")
 end_date <- as.Date("4/3/2020",format = "%m/%d/%Y")
 
+# Date first case identified
+date_first_case <- as.Date("3/26/2020",format = "%m/%d/%Y")
+
 # Load Boston case data obtained from https://dashboard.cityofboston.gov/t/Guest_Access_Enabled/views/COVID-19/Dashboard1?:showAppBanner=false&:display_count=n&:showVizHome=n&:origin=viz_share_link&:isGuestRedirectFromVizportal=y&:embed=y
 Boston_data <- read.delim("../Data/Boston_Cases_over_time_data.csv",sep = "\t",stringsAsFactors = F, fileEncoding = "UTF-16")
 Boston_case_data <- data.frame(Date = as.Date(Boston_data$Day.of.Timestamp,format = "%B %d, %Y"))
-Boston_case_data$Cases <- c(0,diff(Boston_data$Cases..Total.Positive,lag = 1))
+Boston_case_data$Cases <- c(1,diff(Boston_data$Cases..Total.Positive,lag = 1))
 
 # Set number of residents and staff in shelter and duration of simulation
 N_res <- 408
@@ -83,4 +86,4 @@ D_C <- NULL # set to NULL if no data available on symptom onsets
 
 #  Lower and upper boundaries for priors for R0, E0 and T
 lm.low <- c(1,1,14)
-lm.upp <- c(8,10,30)
+lm.upp <- c(8,5,30)

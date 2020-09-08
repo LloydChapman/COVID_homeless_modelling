@@ -18,6 +18,9 @@ SF_CCMS_data[is.na(SF_CCMS_data)] <- 0
 start_date <- as.Date("4/1/2020",format = "%m/%d/%Y")
 end_date <- as.Date("4/8/2020",format = "%m/%d/%Y")
 
+# Date first case identified
+date_first_case <- start_date
+
 # Load Seattle case data obtained from https://www.kingcounty.gov/depts/health/covid-19/data/daily-summary.aspx
 Seattle_case_data <- read.csv("../Data/Seattle_cases.csv",stringsAsFactors = F)
 Seattle_case_data$Date <- as.Date(Seattle_case_data$Date,format = "%m/%d/%y")
@@ -83,4 +86,4 @@ D_C <- NULL # set to NULL if no data available on symptom onsets
 
 #  Lower and upper boundaries for priors for R0, E0 and T
 lm.low <- c(1,1,13)
-lm.upp <- c(8,10,20)
+lm.upp <- c(8,5,20)

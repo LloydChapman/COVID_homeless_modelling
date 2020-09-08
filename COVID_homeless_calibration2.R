@@ -51,8 +51,9 @@ COVID_homeless_model<-function(N_res,N_staff,N_pop,T_sim,w,beta,epsilon,r_E,p_E,
   DayRemoved <- rep(NA,N_pop) # day individual removed following PCR positive test 
   HxAb <- rep(F,N_pop) # has tested positive for antibodies
   NewInfection <- rep(0,N_pop)
+  Background <- rep(0,N_pop)
   
-  sim_pop0 <- data.frame(cbind(Number, Resident, Risk, TrueState, DayTrueState, WaitingTime, DaysSinceInfctn, DaysSinceInfctsnss, DaysPCRpos, Hospitalised, ObsState, DayObsState, Tested, DayTested, HxPCR, DayRemoved, HxAb, NewInfection))
+  sim_pop0 <- data.frame(cbind(Number, Resident, Risk, TrueState, DayTrueState, WaitingTime, DaysSinceInfctn, DaysSinceInfctsnss, DaysPCRpos, Hospitalised, ObsState, DayObsState, Tested, DayTested, HxPCR, DayRemoved, HxAb, NewInfection, Background))
   
   # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
   # Decision trees
@@ -64,8 +65,8 @@ COVID_homeless_model<-function(N_res,N_staff,N_pop,T_sim,w,beta,epsilon,r_E,p_E,
   # Note: Each person has a "true state" (susceptible, exposed, presymptomatic infectious (mild/severe), symptomatic infectious (mild/severe), recovered) and an "observed state" (non-immune, infected or immune)
   
   # Create objects for storing simulation output
-  infections <- rep(0,T_sim)
-  cases <- rep(0,T_sim)
+  infections_res <- rep(0,T_sim)
+  cases_res <- rep(0,T_sim)
   infections_staff <- rep(0,T_sim)
   cases_staff <- rep(0,T_sim)
   PCRpos_sx_testing <- rep(0,length(sx_testing_days))
@@ -113,7 +114,7 @@ COVID_homeless_model<-function(N_res,N_staff,N_pop,T_sim,w,beta,epsilon,r_E,p_E,
     #   11- True new infection
 
     # Update states of individuals based on transmission on previous day
-    list[TrueState,DayTrueState,DayObsState,WaitingTime,DaysSinceInfctn,DaysSinceInfctsnss,NewInfection,DaysPCRpos,infections[t],cases[t],infections_staff[t],cases_staff[t]] <- iterate(TrueState,Present,DayTrueState,DayObsState,DaysSinceInfctn,DaysSinceInfctsnss,beta,w,h,alpha,epsilon,N_pop,WaitingTime,r_E,p_E,e0ind,Risk,p_s,r_p,p_p,NewInfection,DaysPCRpos,min_days_PCR_pos,max_days_PCR_pos,discrnorm,Resident,hospitalisation,Hospitalised,Dead,p_h,p_ICU,p_d)
+    list[TrueState,DayTrueState,DayObsState,WaitingTime,DaysSinceInfctn,DaysSinceInfctsnss,NewInfection,Background,DaysPCRpos,infections_res[t],cases_res[t],infections_staff[t],cases_staff[t]] <- iterate(TrueState,Present,DayTrueState,DayObsState,DaysSinceInfctn,DaysSinceInfctsnss,beta,w,h,alpha,epsilon,N_pop,WaitingTime,r_E,p_E,e0ind,Risk,p_s,r_p,p_p,NewInfection,Background,DaysPCRpos,min_days_PCR_pos,max_days_PCR_pos,discrnorm,Resident,hospitalisation,Hospitalised,Dead,p_h,p_ICU,p_d)
     
     # Store true states of individuals on day t
     state[,t] <- TrueState
@@ -228,7 +229,7 @@ COVID_homeless_model<-function(N_res,N_staff,N_pop,T_sim,w,beta,epsilon,r_E,p_E,
     }
 }
 
-sim_pop <- data.frame(cbind(Number, Resident, Present, Age, Risk, TrueState, DayTrueState, WaitingTime, DaysSinceInfctn, DaysSinceInfctsnss, DaysPCRpos, Hospitalised, ObsState, DayObsState, Tested, DayTested, HxPCR, DayRemoved, HxAb, NewInfection))
-return(res=list(infections=infections,cases=cases,infections_staff=infections_staff,cases_staff=cases_staff,PCRpos_sx_testing=PCRpos_sx_testing,PCRpos=PCRpos,sim_pop=sim_pop,state=state,presence=presence))
+sim_pop <- data.frame(cbind(Number, Resident, Present, Age, Risk, TrueState, DayTrueState, WaitingTime, DaysSinceInfctn, DaysSinceInfctsnss, DaysPCRpos, Hospitalised, ObsState, DayObsState, Tested, DayTested, HxPCR, DayRemoved, HxAb, NewInfection, Background))
+return(res=list(infections_res=infections_res,cases_res=cases_res,infections_staff=infections_staff,cases_staff=cases_staff,PCRpos_sx_testing=PCRpos_sx_testing,PCRpos=PCRpos,sim_pop=sim_pop,state=state,presence=presence))
 
 }

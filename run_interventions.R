@@ -1,9 +1,13 @@
+rm(list=ls())
+
 library(actuar)
 library(splines)
 library(ggplot2)
 library(reshape2)
 library(Hmisc)
 library(gsubfn)
+library(doParallel)
+library(abind)
 
 setwd("~/Dropbox/Homeless/Code")
 source("COVID_homeless_interventions.R")
@@ -11,6 +15,9 @@ source("COVID_homeless_functions.R")
 source("run_simulations.R")
 source("process_interventions.R")
 source("plot_interventions.R")
+
+# Register doParallel backend with 10 workers
+registerDoParallel(10)
 
 # Number of simulations per intervention strategy
 nsims <- 1000
@@ -36,11 +43,33 @@ names(CCMS_data) <- gsub("\\.\\.\\.|\\.\\.|\\.","_",names(CCMS_data))
 # Replace NA's with 0's
 CCMS_data[is.na(CCMS_data)] <- 0
 
+# Start and end date for calculating background incidence
+start_date <- as.Date("7/4/2020",format = "%m/%d/%Y")
+end_date <- as.Date("7/17/2020",format = "%m/%d/%Y")
+
+underreporting <- 4
+homeless_RR <- 2
+
 # Load SF data from SF DPH [https://data.sfgov.org/COVID-19/COVID-19-Cases-Summarized-by-Date-Transmission-and/tvq9-ec9w]
-SF_data <- read.csv("../Data/COVID-19_Cases_Summarized_by_Date__Transmission_and_Case_Disposition.csv",stringsAsFactors = F)
+SF_data <- read.csv("../Data/COVID-19_Cases_Summarized_by_Date__Transmission_and_Case_Disposition_2020_07_24.csv",stringsAsFactors = F)
 # Remove deaths
 SF_data <- SF_data[!(SF_data$Case.Disposition=="Death"),]
-SF_case_data <- aggregate(Case.Count ~ Date,SF_data,sum)
+names(SF_data)[names(SF_data)=="Specimen.Collection.Date"] <- "Date"
+names(SF_data)[names(SF_data)=="Case.Count"] <- "Cases"
+SF_data$Date <- as.Date(SF_data$Date) 
+SF_case_data <- aggregate(Cases ~ Date,SF_data,sum)
+epsilon_SF <- calc_epsilon(SF_case_data,start_date,end_date,881549,underreporting,homeless_RR)
+
+# Load Boston case data obtained from https://dashboard.cityofboston.gov/t/Guest_Access_Enabled/views/COVID-19/Dashboard1?:showAppBanner=false&:display_count=n&:showVizHome=n&:origin=viz_share_link&:isGuestRedirectFromVizportal=y&:embed=y
+Boston_data <- read.delim("../Data/Boston_Cases_over_time_data.csv",sep = "\t",stringsAsFactors = F, fileEncoding = "UTF-16")
+Boston_case_data <- data.frame(Date = as.Date(Boston_data$Day.of.Timestamp,format = "%B %d, %Y"))
+Boston_case_data$Cases <- c(1,diff(Boston_data$Cases..Total.Positive,lag = 1))
+epsilon_Boston <- calc_epsilon(Boston_case_data,start_date,end_date,692600,underreporting,homeless_RR)
+
+# Load Seattle case data
+Seattle_case_data <- read.csv("../Data/Seattle_cases.csv",stringsAsFactors = F)
+Seattle_case_data$Date <- as.Date(Seattle_case_data$Date,format = "%m/%d/%y")
+epsilon_Seattle <- calc_epsilon(Seattle_case_data,start_date,end_date,753675,underreporting,homeless_RR)
 
 # Set number of residents and staff in shelter and duration of simulation
 N_res <- 250 #237 #350
@@ -54,8 +83,9 @@ w <- rep(1,N_pop) # c(rep(1,N_res),rep(1/2,N_staff))
 # Set natural history parameters
 source("set_nat_hist_pars.R")
 
-# Set background transmission rate
-epsilon <- 0 #0.001
+# Set background transmission rates
+tmp <- c(epsilon_SF,epsilon_Seattle,epsilon_Boston)
+epsilons <- c(0,min(tmp),mean(tmp),max(tmp))
 
 # Flag for whether to count hospitalisations and deaths
 hospitalisation <- T
@@ -64,7 +94,8 @@ hospitalisation <- T
 source("set_PCR_test_pars.R")
 
 # PCR testing frequency
-testing_days <- seq(1,T_sim)[(seq(1,T_sim) %% 7) %in% seq(1,4)] # seq(1,T_sim)[(seq(1,T_sim) %% 7) %in% seq(0,6)] # testing twice per week on 1st and 4th day
+testing_freq <- 2 # testing events per week
+testing_days <- floor(seq(1,T_sim,by = 7/testing_freq)) #seq(1,T_sim)[(seq(1,T_sim) %% 7) %in% seq(1,4)] #seq(1,T_sim)[(seq(1,T_sim) %% 7) %in% c(1,4)] # seq(1,T_sim)[(seq(1,T_sim) %% 7) %in% seq(0,6)] # testing twice per week on 1st and 4th day
 
 # Set intervention parameters
 max_PCR_tests_per_week <- 2 #10 # maximum number of PCR tests per week
@@ -110,126 +141,106 @@ Age[Risk %in% c(2,4)] <- sample(x=seq(60,80), size=sum(Risk %in% c(2,4)), replac
 # Set number of initial latently infected cases
 E0 <- 1
 
-## Run interventions with median R0's from calibration to different shelter outbreaks
-run_nms <- c("_SF_R0_6","_Seattle_A_R0_6","_Boston_R0_6")
 # Names of files with posterior samples
-fnms <- sapply(c("_16","_Seattle_A_6","_Boston_5"),function(x) paste0("results_ABC_SMC_MNN_gen_10",x,".csv"))
-for (i in 1:length(fnms)){
-  pars <- read.csv(fnms[i],stringsAsFactors = F)
-  R0 <- median(pars[,1])
-  run_simulations(R0,w,Present,p_s,Risk,h,alpha,mu_p,mu_sx,nsims,N_res,N_staff,N_pop,
-                  T_sim,epsilon,r_E,p_E,r_p,p_p,r_sx,p_sx,p_h,p_ICU,p_d,mean_days_PCR_pos,
-                  min_days_PCR_pos,max_days_PCR_pos,discrnorm,hospitalisation,fit,
-                  fit_extrap,spec,testing_days,interventions,max_PCR_tests_per_week,
-                  min_days_btw_tests,entry_PCR_test_compliance,routine_PCR_test_compliance,
-                  sx_pos_PCR_test_compliance,mask_compliance,mask_eff,sens_sx,spec_sx,Number,
-                  Resident,Age,res_present0,E0,run_nms[i])
-  process_interventions(paste0("intvntn_sim_output",run_nms[i],".RData"),run_nms[i])
-  plot_interventions(paste0("intvntn_sim_output",run_nms[i],".RData"),run_nms[i])
+fnms <- sapply(c("_Seattle_A_12","_Boston_11","_SF_22"),function(x) paste0("results_ABC_SMC_MNN_gen_10",x,".csv"))
+# Make vector of different estimated R0's
+R0s <- numeric(length(fnms))
+for (j in 1:length(fnms)){
+  pars <- read.csv(fnms[j],stringsAsFactors = F)
+  R0s[j] <- median(pars[,1])  
+}
+# Add a lower R0 value for scenario analyses
+R0s <- c(1.5,R0s)
+R0lbls <- c("(low-risk)","(Seattle)","(Boston)","(SF)")
+# R0s <- R0s[c(2,3)]
+ttls <- c("No interventions","Symptom screening","Routine PCR testing","Universal mask wearing","Relocation of high-risk individuals","Routine PCR testing of staff only","Combination strategy")
+
+## Run interventions with median R0's from calibration to different shelter outbreaks
+run_nms <- c("_lower_R0_5","_Seattle_A_R0_10","_Boston_R0_10","_SF_R0_10")
+for (i in 1:length(epsilons)){
+  for (j in 1:length(R0s)){
+    run_nm <- paste0(run_nms[j],"_epsilon",i-1)
+    run_simulations(R0s[j],w,Present,p_s,Risk,h,alpha,mu_p,mu_sx,nsims,N_res,N_staff,N_pop,
+                    T_sim,epsilons[i],r_E,p_E,r_p,p_p,r_sx,p_sx,p_h,p_ICU,p_d,mean_days_PCR_pos,
+                    min_days_PCR_pos,max_days_PCR_pos,discrnorm,hospitalisation,fit,
+                    fit_extrap,spec,testing_days,interventions,max_PCR_tests_per_week,
+                    min_days_btw_tests,entry_PCR_test_compliance,routine_PCR_test_compliance,
+                    sx_pos_PCR_test_compliance,mask_compliance,mask_eff,sens_sx,spec_sx,Number,
+                    Resident,Age,res_present0,E0,run_nm)
+    process_interventions(paste0("intvntn_sim_output",run_nm,".RData"),run_nm,T_sim)
+    plot_interventions(paste0("intvntn_sim_output",run_nm,".RData"),run_nm,ttls)
+  }
+  # Combine results for each epsilon value
+  combine_results("perc_reduction_infections",length(interventions)-1,run_nms,i)
+  combine_results("perc_reduction_cases",length(interventions)-1,run_nms,i)
+  combine_results("prob_outbreak_averted",length(interventions)-1,run_nms,i)
 }
 
-# # Run interventions for hypothetical shelter with lower R0 and lower background transmission based on SF data
-# R0 <- 1.5
-# mean_daily_cases <- mean(SF_case_data$Case.Count[SF_case_data$Date>=as.Date("3/28/2020",format="%m/%d/%Y") & SF_case_data$Date<=as.Date("4/10/2020",format="%m/%d/%Y")]) # mean of confirmed cases for period of interest
-# mean_daily_inc <- mean_daily_cases/881549 # population estimate from US Census Bureau [https://www.census.gov/quickfacts/sanfranciscocountycalifornia]
-# epsilon <- mean_daily_inc/0.14 # transmission rate outside shelter assuming 1/0.14=7.1x as many infections as confirmed cases from Li Science 2020
-# run_nm <- "_lower_R0_3"
-# run_simulations(R0,w,Present,p_s,Risk,h,alpha,mu_p,mu_sx,nsims,N_res,N_staff,N_pop,
-#                 T_sim,epsilon,r_E,p_E,r_p,p_p,r_sx,p_sx,p_h,p_ICU,p_d,mean_days_PCR_pos,
-#                 min_days_PCR_pos,max_days_PCR_pos,discrnorm,hospitalisation,fit,
-#                 fit_extrap,spec,testing_days,interventions,max_PCR_tests_per_week,
-#                 min_days_btw_tests,entry_PCR_test_compliance,routine_PCR_test_compliance,
-#                 mask_compliance,mask_eff,sens_sx,spec_sx,Number,Resident,
-#                 Age,e0ind,TrueState,DayTrueState,WaitingTime,DaysSinceInfctn,
-#                 DaysSinceInfctsnss,DaysPCRpos,run_nm)
-# process_interventions(paste0("intvntn_sim_output",run_nm,".RData"),run_nm)
-# plot_interventions(paste0("intvntn_sim_output",run_nm,".RData"),run_nm)
-# 
-# # Quality checks
-# # Run interventions for hypothetical shelter with lower R0 and lower background transmission based on SF data
-# R0 <- 2.5
-# mean_daily_cases <- mean(SF_case_data$Case.Count[SF_case_data$Date>=as.Date("3/28/2020",format="%m/%d/%Y") & SF_case_data$Date<=as.Date("4/10/2020",format="%m/%d/%Y")]) # mean of confirmed cases for period of interest
-# mean_daily_inc <- mean_daily_cases/881549 # population estimate from US Census Bureau [https://www.census.gov/quickfacts/sanfranciscocountycalifornia]
-# epsilon <- 6*mean_daily_inc/0.14 # transmission rate outside shelter assuming 1/0.14=7.1x as many infections as confirmed cases from Li Science 2020
-# run_nm <- "_high_risk_removal_check"
-# run_simulations(R0,w,Present,p_s,Risk,h,alpha,mu_p,mu_sx,nsims,N_res,N_staff,N_pop,
-#                 T_sim,epsilon,r_E,p_E,r_p,p_p,r_sx,p_sx,p_h,p_ICU,p_d,mean_days_PCR_pos,
-#                 min_days_PCR_pos,max_days_PCR_pos,discrnorm,hospitalisation,fit,
-#                 fit_extrap,spec,testing_days,list(NULL,6),max_PCR_tests_per_week,
-#                 min_days_btw_tests,entry_PCR_test_compliance,routine_PCR_test_compliance,
-#                 mask_compliance,mask_eff,sens_sx,spec_sx,Number,Resident,
-#                 Age,e0ind,TrueState,DayTrueState,WaitingTime,DaysSinceInfctn,
-#                 DaysSinceInfctsnss,DaysPCRpos,run_nm)
-# process_interventions(paste0("intvntn_sim_output",run_nm,".RData"),run_nm)
-# plot_interventions(paste0("intvntn_sim_output",run_nm,".RData"),run_nm)
-# 
-# # Daily PCR testing with no max number of weekly tests # [ ] - changes hard coded in interventions code, need to UPDATE
-# infections_PCR <- numeric(nsims)
-# for (j in 1:nsims){
-#   res3 <- COVID_homeless_intervention_model(0.01,CCMS_data,SF_case_data,c(3,4))
-#   infections_PCR[j] <- sum(res3$infections)
-# }
-# 
-# barplot(res3$infections)
-# View(res3$sim_pop)
-# View(res3$state)
-# View(res3$presence)
-# tE3 <- getEventTime1(res3$state,2)
-# tI_m_p3 <- getEventTime1(res3$state,3)
-# tI_s_p3 <- getEventTime1(res3$state,4)
-# View(cbind(tE3,tI_m_p3,tI_s_p3,res3$sim_pop$DayRemoved))
-# mean(infections_PCR)
-# 
-# # write.table(infections_PCR,"new_onsets_daily_PCR_no_max_per_week.csv",sep = ",",col.names = F, row.names = F)
-# 
-# ## beta=0.01, epsilon=0, no migration in/out only hospitalisation of some clinical cases 
-# # No interventions
-# set.seed(1)
-# res4 <- COVID_homeless_intervention_model(0.01,CCMS_data,SF_case_data,NULL)
-# View(res4$sim_pop)
-# View(res4$state)
-# View(res4$presence)
-# plot(colSums(res4$presence))
-# barplot(res4$infections)
-# sum(res4$infections) # 302
-# # Passive sx screening and daily PCR testing with 100% compliance and sensitivity=1
-# set.seed(1)
-# res5 <- COVID_homeless_intervention_model(0.01,CCMS_data,SF_case_data,c(3,4))
-# View(res5$sim_pop)
-# View(res5$state)
-# View(res5$presence)
-# plot(colSums(res5$presence))
-# barplot(res5$infections)
-# sum(res5$infections) # 295
-# 
-# ## beta=0.005
-# # No interventions
-# set.seed(1)
-# res6 <- COVID_homeless_intervention_model(0.005,CCMS_data,SF_case_data,NULL)
-# View(res6$sim_pop)
-# View(res6$state)
-# View(res6$presence)
-# plot(colSums(res6$presence))
-# barplot(res6$infections)
-# sum(res6$infections) # 302
-# # Passive sx screening and daily PCR testing with 100% compliance and sensitivity=1
-# set.seed(1)
-# res7 <- COVID_homeless_intervention_model(0.005,CCMS_data,SF_case_data,c(3,4))
-# View(res7$sim_pop)
-# View(res7$state)
-# View(res7$presence)
-# plot(colSums(res7$presence))
-# barplot(res7$infections)
-# sum(res7$infections) # 260
-# 
-# ## 100% effective masking
-# set.seed(1)
-# res8 <- COVID_homeless_intervention_model(0.01,CCMS_data,SF_case_data,5)
-# View(res8$sim_pop)
-# View(res8$state)
-# View(res8$presence)
-# plot(colSums(res8$presence))
-# barplot(res8$infections)
-# sum(res8$infections) # 2 - only the initial cases
-# 
-# 
+plot_interventions_by_strategy(nsims,T_sim,run_nms,epsilons,interventions,R0s,R0lbls,ttls)
+
+# Run interventions for a range of background incidences for each of the R0 estimates to find relationship
+# between background incidence and probability of averting an outbreak
+epsilons1 <- seq(0,max(tmp),length.out = 10) #seq(0,max(tmp),length.out = 30)
+# epsilons1 <- seq(0,min(tmp),length.out = 8)
+# prob_outbreak_averted <- array(NA,dim = c(length(interventions)-1,length(epsilons1),length(run_nms)))
+
+acomb <- function(...){abind(...,along = 3)}
+
+prob_outbreak_averted <- foreach(i=1:length(R0s),.combine = 'acomb',.multicombine=T) %:%
+ foreach(j=1:length(epsilons1),.combine = 'cbind') %dopar% {
+   run_nm <- paste0(run_nms[i],"_SA_1_epsilon",j-1)
+   # run_nm <- paste0(run_nms[i],"_SA_test1_epsilon",j-1)
+   run_simulations(R0s[i],w,Present,p_s,Risk,h,alpha,mu_p,mu_sx,nsims,N_res,N_staff,N_pop,
+                   T_sim,epsilons1[j],r_E,p_E,r_p,p_p,r_sx,p_sx,p_h,p_ICU,p_d,mean_days_PCR_pos,
+                   min_days_PCR_pos,max_days_PCR_pos,discrnorm,hospitalisation,fit,
+                   fit_extrap,spec,testing_days,interventions,max_PCR_tests_per_week,
+                   min_days_btw_tests,entry_PCR_test_compliance,routine_PCR_test_compliance,
+                   sx_pos_PCR_test_compliance,mask_compliance,mask_eff,sens_sx,spec_sx,Number,
+                   Resident,Age,res_present0,E0,run_nm)
+   load(paste0("intvntn_sim_output",run_nm,".RData"))
+   # prob_outbreak_averted[,j,i] <- calc_prob_outbreak_averted(infections,bckgrnd_infections)
+   calc_prob_outbreak_averted(infections,bckgrnd_infections)
+ }
+
+# save(interventions,R0s,epsilons1,prob_outbreak_averted,file = "prob_outbreak_averted_SA_epsilon_1.RData")
+save(interventions,R0s,epsilons1,prob_outbreak_averted,file = "prob_outbreak_averted_SA_1_epsilon.RData")
+# save(interventions,R0s,epsilons1,prob_outbreak_averted,file = "prob_outbreak_averted_SA_test1_epsilon_1.RData")
+
+# plot_epsilon_SA("prob_outbreak_averted_SA_epsilon_1.RData",run_nms)
+plot_epsilon_SA("prob_outbreak_averted_SA_1_epsilon.RData",run_nms,homelessRR,R0lbls)
+
+# Run sensitivity analysis for probability of averting an outbreak under different PCR testing frequencies for each R0 value
+# testing_freqs <- seq(0.5,2,length.out = 13)
+days_btw_tests <- c(1,3) #c(1,3,7,10,14,21,30)
+
+prob_outbreak_averted1 <-
+  foreach(i=1:length(R0s),.combine = 'cbind') %:%
+    # foreach(j=1:length(testing_freqs),.combine = 'c') %dopar% {
+    foreach(j=1:length(days_btw_tests),.combine = 'c') %dopar% {
+# # prob_outbreak_averted1 <- matrix(nrow = length(testing_freqs),ncol = length(R0s))
+# # for (i in 1:length(R0s)){
+# #   for(j in 1:length(testing_freqs)){
+# prob_outbreak_averted1 <- matrix(nrow = length(days_btw_tests),ncol = length(R0s))
+# for (i in 1:length(R0s)){
+#    for(j in 1:length(days_btw_tests)){
+      run_nm <- paste0(run_nms[i],"_SA_6_PCR_testing_freq",j)
+      # testing_days <- floor(seq(1,T_sim,by = 7/testing_freqs[j]))
+      testing_days <- floor(seq(days_btw_tests[j],T_sim,by = days_btw_tests[j]))
+      run_simulations(R0s[i],w,Present,p_s,Risk,h,alpha,mu_p,mu_sx,nsims,N_res,N_staff,N_pop,
+                      T_sim,epsilons[2],r_E,p_E,r_p,p_p,r_sx,p_sx,p_h,p_ICU,p_d,mean_days_PCR_pos,
+                      min_days_PCR_pos,max_days_PCR_pos,discrnorm,hospitalisation,fit,
+                      fit_extrap,spec,testing_days,interventions[c(1,3)],max_PCR_tests_per_week,
+                      min_days_btw_tests,entry_PCR_test_compliance,routine_PCR_test_compliance,
+                      sx_pos_PCR_test_compliance,mask_compliance,mask_eff,sens_sx,spec_sx,Number,
+                      Resident,Age,res_present0,E0,run_nm)
+      load(paste0("intvntn_sim_output",run_nm,".RData"))
+      calc_prob_outbreak_averted(infections,bckgrnd_infections)
+    #   prob_outbreak_averted1[j,i] <- calc_prob_outbreak_averted(infections,bckgrnd_infections)
+    # }
+}
+
+# save(R0s,testing_freqs,prob_outbreak_averted1,file = "prob_outbreak_averted_SA_5_PCR_testing_freq.RData")
+# plot_PCR_testing_freq_SA("prob_outbreak_averted_SA_5_PCR_testing_freq.RData","_5")
+
+save(R0s,days_btw_tests,prob_outbreak_averted1,file = "prob_outbreak_averted_SA_6_PCR_testing_freq.RData")
+plot_PCR_testing_freq_SA("prob_outbreak_averted_SA_6_PCR_testing_freq.RData","_6",R0lbls)
