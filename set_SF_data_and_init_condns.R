@@ -34,10 +34,9 @@ case_data <- read.csv("data/SF_shelter_case_data.csv",colClasses = c("Date","int
 N_res <- 350 # Set such that ~255 unique individuals are present in shelter at some point between 3/29 and 4/10  # CCMS_data$Total_Census[1]
 N_staff <- 65
 N_pop <- N_res + N_staff
-# T_sim <- as.integer(end_date - start_date + 1) #13 # testing 5 days after 1st cases confirmed on 4/5 + 2 days presymptomatic infectiousness (assumed) + 6 days of symptoms of 1st case  # 30 # Days; Total of 1 month
 
 # Set weights for presence of residents and staff in shelter
-w <- rep(1,N_pop) #c(rep(1,N_res),rep(1/2,N_staff))
+w <- rep(1,N_pop)
 
 # Set natural history parameters
 source("set_nat_hist_pars.R")
@@ -57,11 +56,6 @@ sens <- sensitivity("constant",max_days_PCR_pos,const_sens = 0.75) # sensitivity
 spec <- c(1,1,NA,NA,NA,NA,NA) # specificities for states 1 to 7
 
 # PCR testing frequency
-# testing_dates <- as.Date(c("4/8/2020","4/9/2020"),format="%m/%d/%Y") # testing dates
-# testing_days <- as.integer(testing_dates - start_date + 1) # days on which testing occurred
-# N_tested <- rep((144-10)/2,2) # number tested during mass testing = total tested from press release - number tested during first 4 days = 144 - 10, # number tested on each testing day #c(72,72) # assume all testing happened during mass testing and was equally split between 4/8 and 4/9
-# sx_testing_dates <- as.Date(c("4/4/2020","4/5/2020","4/6/2020","4/7/2020"),format="%m/%d/%Y")
-# sx_testing_days <- as.integer(sx_testing_dates - start_date + 1)
 testing_dates <- agg_PCR_data$TestingDate # dates of PCR testing of "random" individuals # [ ] - N.B. in practice these are likely to be close contacts/suspected cases
 N_tested <- agg_PCR_data$Tests[agg_PCR_data$TestingDate %in% testing_dates]  # number tested on each testing day
 sx_testing_dates <- agg_PCR_sx_testing_data$TestingDate # dates of PCR testing of symptomatic individuals

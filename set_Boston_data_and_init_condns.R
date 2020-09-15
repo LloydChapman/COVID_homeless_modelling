@@ -32,7 +32,7 @@ N_staff <- 50
 N_pop <- N_res + N_staff
 
 # Set weights for presence of residents and staff in shelter
-w <- rep(1,N_pop) # c(rep(1,N_res),rep(1/2,N_staff))
+w <- rep(1,N_pop)
 
 # Set natural history parameters
 source("set_nat_hist_pars.R")
@@ -61,7 +61,7 @@ N_sx_tested <- integer() # number of symptomatic individuals tested on each symp
 Number <- 1:N_pop
 Resident <- rep(0,N_pop)
 Resident[1:N_res] <- 1
-res_present0 <- 1:N_res # assume all residents present for duration of simulation for now # sample(1:N_res,SF_CCMS_data$Total_Census[1])
+res_present0 <- 1:N_res # assume all residents present for duration of simulation
 res_absent0 <- setdiff(1:N_res,res_present0)
 staff_present0 <- (N_res+1):N_pop
 Present <- ((1:N_pop) %in% c(res_present0,staff_present0))

@@ -31,7 +31,7 @@ linelist$Age[linelist$Age=="unknown"]<-""
 linelist$Age <- as.integer(linelist$Age)
 
 # Aggregate PCR testing data and symptomatic case data
-idx <- (linelist$TestingDate>=start_date & linelist$TestingDate<=end_date & (linelist$Symptomatic=="" | linelist$TestingDate>=mass_testing_start_date))
+idx <- (linelist$TestingDate>=start_date & linelist$TestingDate<=end_date & (linelist$Symptomatic=="" | linelist$TestingDate>=mass_testing_start_date) & !is.na(linelist$TestingDate))
 agg_PCR_data <- aggregate(ID ~ TestingDate, linelist[idx,], length)
 names(agg_PCR_data)[2] <- "Tests"
 sum(agg_PCR_data$Tests)
@@ -43,7 +43,7 @@ agg_PCR_data$PositiveTests[is.na(agg_PCR_data$PositiveTests)] <- 0
 # Save PCR data from "random" testing
 write.csv(agg_PCR_data,"data/SF_shelter_PCR_data.csv",row.names = F)
 
-idx <- (linelist$TestingDate>=start_date & linelist$Symptomatic %in% c("Y","Y_IQ") & linelist$TestingDate<mass_testing_start_date)
+idx <- (linelist$TestingDate>=start_date & linelist$Symptomatic %in% c("Y","Y_IQ") & linelist$TestingDate<mass_testing_start_date & !is.na(linelist$TestingDate))
 agg_PCR_sx_testing_data <- aggregate(ID ~ TestingDate, linelist[idx,], length)
 names(agg_PCR_sx_testing_data)[2] <- "Tests"
 tmp <- aggregate(ID ~ TestingDate, linelist[linelist$Result=="positive" & idx,], length)

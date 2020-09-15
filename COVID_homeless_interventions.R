@@ -1,21 +1,3 @@
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
-# Title: Comparison of public health strategies to reduce COVID-19 in homeless populations across the United States 
-# Code author: Lloyd Chapman (UCSF)
-# Origin date: 5/19/20
-# Last updated: 6/9/20
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
-# Study background  
-# 
-# Objective: 
-# 
-# Study outcomes:
-# 1) Number of infections
-# 2) Number of hospitalizations
-# 3) Number of deaths
-# 4) Total healthcare spending 
-
-# [ ] - CHECK use of sample() throughout code given how it works for integer vectors of length 1 in first argument! Change to resample() if necessary
-
 COVID_homeless_intervention_model<-function(N_res,N_staff,N_pop,T_sim,w,beta,epsilon,r_E,p_E,p_s,h,r_p,p_p,
                                             alpha,r_sx,p_sx,p_h,p_ICU,p_d,mean_days_PCR_pos,min_days_PCR_pos,
                                             max_days_PCR_pos,discrnorm,hospitalisation,sens,spec,
@@ -29,24 +11,11 @@ COVID_homeless_intervention_model<-function(N_res,N_staff,N_pop,T_sim,w,beta,eps
   # Population microsimulation 
   # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
   
-  # Columns
-  #   1- Person number
-  #   2- Alive (1), Dead (0) 
-  #   3- Age
-  #   4- Risk group: 1- very low; 2- low; 3- medium; 4- high
-  #   5- True State: 0- dead; 1- susceptible; 2- exposed; 3- presx infectious mild; 4- presx infectious severe; 5- sx infectious mild ; 6- sx infectious severe; 7- recovered
-  #   6- Day in TRUE state: (1,N)
-  #   7- Waiting time in days in TRUE state
-  #   8- Observed State: 1- non-immune; 2- infected; 3- immune (defined post confirmed infection)
-  #   9- Day in OBSERVED state: (1,N)
-  #   10- Hx positive PCR: 0- no; 1- yes (detected positive PCR)
-  #   11- Hx positive Ab (serology): 0- no; 1- yes
-  #   12- True new infection
+  # Note: Each person has a "true state" (TrueState): susceptible, exposed, early infectious (subclinical/clinical), late infectious (subclinical/clinical), recovered; and an "observed state" (ObsState): never infected or ever infected
   
   # Mask wearing
   if (5 %in% interventions) {
     beta <- (1-mask_compliance*mask_eff)*beta
-    # print(beta)
   }
   
   # Removal of high-risk individuals and replacement with low-risk individuals
@@ -59,18 +28,45 @@ COVID_homeless_intervention_model<-function(N_res,N_staff,N_pop,T_sim,w,beta,eps
   Dead <- rep(F,N_pop)
   ObsState <- rep(1,N_pop)
   DayObsState <- rep(0,N_pop)
-  Tested <- rep(0,N_pop)
-  DayTested <- rep(NA,N_pop)
-  PCRtests <- rep(0,N_pop)
+  Tested <- rep(0,N_pop) # ever PCR tested
+  DayTested <- rep(NA,N_pop) # day individual last PCR tested
+  PCRtests <- rep(0,N_pop) # total number of PCR tests individual has had
   PCRtestsWeek <- rep(0,N_pop) # counter of number of PCR tests individual has had in current week
   HxPCR <- rep(F,N_pop) # has tested positive on PCR - these individuals are removed and not allowed to return
   DayRemoved <- rep(NA,N_pop) # day individual removed following PCR positive test 
   HxAb <- rep(F,N_pop) # has tested positive for antibodies
   HxSx <- rep(F,N_pop) # has screened positive for symptoms
-  NewInfection <- rep(0,N_pop)
+  NewInfection <- rep(0,N_pop) # true new infection
   Background <- rep(0,N_pop) # was infected outside the shelter
   
-  sim_pop0 <- data.frame(cbind(Number, Resident, Risk, TrueState, DayTrueState, WaitingTime, DaysSinceInfctn, DaysSinceInfctsnss, DaysPCRpos, Hospitalised, Dead, ObsState, DayObsState, Tested, DayTested, PCRtests, PCRtestsWeek, HxPCR, DayRemoved, HxAb, HxSx, NewInfection, Background))
+  # Make data frame of initial values of variables for all individuals
+  # Columns
+  #   1- Person number
+  #   2- Resident (1), Staff (0)
+  #   3- Present (T), Absent (F)
+  #   4- Age
+  #   5- Risk group: (1) under-60 & no co-morbidities, (2) 60+ & no co-morbidities, (3) under-60 & co-morbidities, (4) 60+ & co-morbidities
+  #   6- True State: (1) susceptible; (2) exposed; (3) subclinical early infectious; (4) clinical early infectious; (5) subclinical late infectious; (6) clinical late infectious; (7) recovered
+  #   7- Days elapsed in TRUE state
+  #   8- Waiting time in days in TRUE state
+  #   9- Number of days since infection
+  #   10- Number of days since becoming infectious (entering early infectious stage)
+  #   11- Days from start of infectiousness for which individual has detectable viral load
+  #   12- Hospitalised (T) or Not-hospitalised (F) if clinical symptoms
+  #   13- Dead (T), Alive (F)
+  #   14- Observed State: Uninfected (1); Infected (2)
+  #   15- Days elapsed in OBSERVED state
+  #   16- Tested (1), Untested (0) 
+  #   17- Day last PCR tested
+  #   18- Total number of PCR tests
+  #   19- Number of PCR tests in current week
+  #   20- History of positive PCR test: Yes (T), No (F)
+  #   21- Day removed from shelter following positive PCR test
+  #   22- History of positive Ab test (serology): Yes (T), No (F)
+  #   23- History of positive symptom screen: Yes (T), No (F)
+  #   23- True new infection
+  #   24- Infected outside shelter: Yes (1), No (0)
+  sim_pop0 <- data.frame(cbind(Number, Resident, Present, Age, Risk, TrueState, DayTrueState, WaitingTime, DaysSinceInfctn, DaysSinceInfctsnss, DaysPCRpos, Hospitalised, Dead, ObsState, DayObsState, Tested, DayTested, PCRtests, PCRtestsWeek, HxPCR, DayRemoved, HxAb, HxSx, NewInfection, Background))
   
   # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
   # Decision trees
@@ -78,8 +74,7 @@ COVID_homeless_intervention_model<-function(N_res,N_staff,N_pop,T_sim,w,beta,eps
   
   # Decision tree logic 
   
-  # Time step: Daily 
-  # Note: Each person has a "true state" (susceptible, exposed, presymptomatic infectious (mild/severe), symptomatic infectious (mild/severe), recovered) and an "observed state" (non-immune, infected or immune)
+  # Time step: Daily
   
   # Create objects for storing simulation output
   infections_res <- rep(0,T_sim)
@@ -112,28 +107,15 @@ COVID_homeless_intervention_model<-function(N_res,N_staff,N_pop,T_sim,w,beta,eps
     #
     # Focus on TRUE state
     #
-    # Step 1: S -> E (infection)
+    # Transition 1: S -> E (infection)
     #
-    # Step 2: E -> I_m_p, I_s_p (progression to presymptomatic infectious stage)
+    # Transition 2: E -> I_s1, I_c1 (progression to early infectious stage)
     #
-    # Step 3: I_m_p -> I_m_sx, I_s_p -> I_s_sx (symptom onset)
+    # Transition 3: I_s1 -> I_s2, I_c1 -> I_c2 (progression to late infectious stage)
     #
-    # Step 4: I_m_sx, I_s_sx -> R (recovery)
+    # Transition 4: I_s2, I_c2 -> R (recovery)
     #
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-
-    # Columns
-    #   1- Person number
-    #   2- Alive (1), Dead (0)
-    #   3- Age
-    #   4- Risk group: 1- very low; 2- low; 3- medium; 4- high - [ ] UPDATE defs
-    #   5- True State: 0- dead; 1- susceptible; 2- exposed; 3- presx infectious mild; 4- presx infectious severe; 5- sx infectious mild ; 6- sx infectious severe; 7- recovered
-    #   6- Day in TRUE state: (1,N)
-    #   7- Observed State: 1- non-immune; 2- infected; 3- immune (defined post confirmed infection)
-    #   8- Day in OBSERVED state: (1,N)
-    #   9- Hx positive PCR: 0- no; 1- yes (detected positive PCR)
-    #   10- Hx positive Ab (serology): 0- no; 1- yes
-    #   11- True new infection
 
     # Update states of individuals based on transmission on previous day
     list[TrueState,DayTrueState,DayObsState,WaitingTime,DaysSinceInfctn,DaysSinceInfctsnss,NewInfection,Background,DaysPCRpos,infections_res[t],cases_res[t],infections_staff[t],cases_staff[t],Hospitalised,Dead,bckgrnd_infections_res[t],bckgrnd_cases_res[t],bckgrnd_infections_staff[t],bckgrnd_cases_staff[t]] <- iterate(TrueState,Present,DayTrueState,DayObsState,DaysSinceInfctn,DaysSinceInfctsnss,beta,w,h,alpha,epsilon,N_pop,WaitingTime,r_E,p_E,e0ind,Risk,p_s,r_p,p_p,NewInfection,Background,DaysPCRpos,min_days_PCR_pos,max_days_PCR_pos,discrnorm,Resident,hospitalisation,Hospitalised,Dead,p_h,p_ICU,p_d)
@@ -147,9 +129,6 @@ COVID_homeless_intervention_model<-function(N_res,N_staff,N_pop,T_sim,w,beta,eps
     
     # Remove all individuals who tested PCR positive on the previous day
     Present[c(sx_indvdls_removed,PCRpos_removed)] <- F
-    # Return symptom positive individuals who tested PCR negative
-    # print(intersect(sx_indvdls_isolated,PCRpos_removed))
-    # print(setdiff(sx_indvdls_isolated,PCRpos_removed))
     Present[setdiff(sx_indvdls_isolated,PCRpos_removed)] <- T
     DayRemoved[c(sx_indvdls_removed,PCRpos_removed)] <- t
 
@@ -159,16 +138,11 @@ COVID_homeless_intervention_model<-function(N_res,N_staff,N_pop,T_sim,w,beta,eps
       list[Present[idx],,Numbers_add2] <- presence_update(Present[idx],HxPCR[idx],Risk[idx]==2,sample(-5:5,1),0)
       list[Present[idx],,Numbers_add3] <- presence_update(Present[idx],HxPCR[idx],Risk[idx]==3,sample(-5:5,1),0)
       list[Present[idx],,Numbers_add4] <- presence_update(Present[idx],HxPCR[idx],Risk[idx]==4,sample(-5:5,1),0)
-      # print("Indvdls added")
-      # print(c(Numbers_add1,Numbers_add2,Numbers_add3,Numbers_add4))
     }
     
     presence[,t] <- Present
     sx_indvdls_removed <- integer() # reset list of symptomatic individuals removed to empty
     PCRpos_removed <- integer() # reset list of PCR positive individuals removed to empty
-    # print(c(sx_indvdls_removed,PCRpos_removed))
-    # print(sum(Present[idx]))
-    # print(summary(as.factor(Risk[Resident==1 & Present])))
     
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     # ALGORITHM 3: INTERVENTIONS # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
@@ -184,11 +158,9 @@ COVID_homeless_intervention_model<-function(N_res,N_staff,N_pop,T_sim,w,beta,eps
     # PCR testing once upon entry
     if (2 %in% interventions){
       Numbers_add <- c(Numbers_add1,Numbers_add2,Numbers_add3,Numbers_add4)
-      # print(Numbers_add)
       for (i in 1:7){
         list[PCRtests,Tested,DayTested,ObsState,DayObsState,HxPCR,PCRpos,PCRpos_removed] <- PCR_testing_on_entry_update(i,TrueState,Number,Numbers_add,entry_PCR_test_compliance,PCRtests,Tested,DayTested,spec[i],DaysSinceInfctsnss,sens,max_days_PCR_pos,DayTrueState,DaysPCRpos,WaitingTime,ObsState,DayObsState,HxPCR,PCRpos,t,PCRpos_removed) 
       }
-      # print(PCRpos_removed)
     }
         
     # Active symptom screening
@@ -199,14 +171,11 @@ COVID_homeless_intervention_model<-function(N_res,N_staff,N_pop,T_sim,w,beta,eps
       }
       sx_indvdls_isolated <- which(HxSx & !HxSx_prev) # individuals who screen positive for symptoms on this day 
       Present[sx_indvdls_isolated] <- F # immediately isolate individuals who screen symptom positive until test results are returned the next day
-      # print(sx_indvdls_isolated)
-      # print(PCRpos_removed)
     }
     
     # Passive symptom screening
     if (4 %in% interventions){
       idx_sx <- which(TrueState==6 & ObsState==1 & Present & DayTrueState==2) # severe symptomatic individuals present in shelter and not known to be infected self present for PCR testing on 3rd day of symptoms
-      # print(idx_sx)
       PCRtests[idx_sx] <- PCRtests[idx_sx] + 1
       PCRtestsWeek[idx_sx] <- PCRtestsWeek[idx_sx] + 1
       list[Tested,DayTested,ObsState,DayObsState,HxPCR,PCRpos,PCRpos_removed] <- PCR_testing_update(Tested,DayTested,idx_sx,6,spec[6],DaysSinceInfctsnss,sens,max_days_PCR_pos,DayTrueState,DaysPCRpos,WaitingTime,ObsState,DayObsState,HxPCR,PCRpos,t,PCRpos_removed)
@@ -219,7 +188,6 @@ COVID_homeless_intervention_model<-function(N_res,N_staff,N_pop,T_sim,w,beta,eps
           list[PCRtests,PCRtestsWeek,Tested,DayTested,ObsState,DayObsState,HxPCR,PCRpos,PCRpos_removed] <- routine_PCR_testing_update(i,TrueState,ObsState,Present,PCRtestsWeek,max_PCR_tests_per_week,min_days_btw_tests,routine_PCR_test_compliance,PCRtests,Tested,DayTested,spec[i],DaysSinceInfctsnss,sens,max_days_PCR_pos,DayTrueState,DaysPCRpos,WaitingTime,DayObsState,HxPCR,PCRpos,t,PCRpos_removed)
         }        
       }
-      # print(PCRpos_removed)
     }
     
     # Routine PCR testing of staff only
@@ -229,10 +197,10 @@ COVID_homeless_intervention_model<-function(N_res,N_staff,N_pop,T_sim,w,beta,eps
           list[PCRtests,PCRtestsWeek,Tested,DayTested,ObsState,DayObsState,HxPCR,PCRpos,PCRpos_removed] <- routine_PCR_testing_update(i,TrueState,ObsState,(Present & Resident==0),PCRtestsWeek,max_PCR_tests_per_week,min_days_btw_tests,routine_PCR_test_compliance,PCRtests,Tested,DayTested,spec[i],DaysSinceInfctsnss,sens,max_days_PCR_pos,DayTrueState,DaysPCRpos,WaitingTime,DayObsState,HxPCR,PCRpos,t,PCRpos_removed)
         }        
       }
-      # print(PCRpos_removed)
     }
   }
   
+  # Make data frame of final values of variables for all individuals (columns as above)
   sim_pop <- data.frame(cbind(Number, Resident, Present, Age, Risk, TrueState, DayTrueState, WaitingTime, DaysSinceInfctn, DaysSinceInfctsnss, DaysPCRpos, Hospitalised, Dead, ObsState, DayObsState, Tested, DayTested, PCRtests, PCRtestsWeek, HxPCR, DayRemoved, HxAb, HxSx, NewInfection, Background))
   return(res=list(infections_res=infections_res,cases_res=cases_res,infections_staff=infections_staff,cases_staff=cases_staff,bckgrnd_infections_res=bckgrnd_infections_res,bckgrnd_cases_res=bckgrnd_cases_res,bckgrnd_infections_staff=bckgrnd_infections_staff,bckgrnd_cases_staff=bckgrnd_cases_staff,PCRpos=PCRpos,sim_pop=sim_pop,state=state,presence=presence))
 }

@@ -10,9 +10,7 @@ calc_distance <- function(D_S,D_S_star,D_T,D_T_star,D_C=NULL,D_C_star=NULL){
 }
 
 # Perturbation kernel 
-rK <- function(mean, sigma, lm.low, lm.upp){   
-	# return(rtmvnorm(1, mean=mean, sigma=sigma, lower=lm.low, upper=lm.upp))
-  # return(rmvnorm(1, mean=mean, sigma=sigma))
+rK <- function(mean, sigma, lm.low, lm.upp){
   return(rmvn(1, mu=mean, sigma=sigma))
 }
 

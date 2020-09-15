@@ -17,27 +17,6 @@ calc_epsilon <- function(case_data,start_date,end_date,pop,underreporting,homele
   return(epsilon)
 }
 
-# # PCR sensitivity as a function of time since start of infectiousness
-# sens <- function(x,fit,fit_extrap,max_days_PCR_pos){
-#   # res <- rep(1,length(x))
-#   # res <- rep(0.75,length(x))
-#   res <- rep(0,length(x))
-#   x1 <- length(fit$fitted.values)
-#   idx <- (x>0 & x<=x1)
-#   if (any(idx)){
-#     res[idx] <- suppressWarnings(predict(fit,data.frame(x=x[idx])))
-#   }
-#   # idx1 <- which(x>x1 & x<=max_days_PCR_pos)
-#   # for (i in 1:length(idx1)){
-#   #   res[idx1[i]] <- max(fit_extrap$y[fit_extrap$x==x[idx1[i]]],0)
-#   # }
-#   idx1 <- (x>x1 & x<=max_days_PCR_pos)
-#   if (any(idx1)){
-#     res[idx1] <- pmax(sapply(x[idx1],function(x) fit_extrap$y[fit_extrap$x==x]),0) # ensure sensitivity is non-negative
-#   }
-#   return(res)
-# }
-
 # PCR sensitivity as a function of time since start of infectiousness
 sensitivity <- function(sens_type,max_days_PCR_pos,const_sens=NULL,mu_E=NULL){
   if (sens_type=="constant"){
@@ -89,7 +68,7 @@ iterate <- function(TrueState,Present,DayTrueState,DayObsState,DaysSinceInfctn,D
   I_c2 <- sum(w*(i_c2 & Present))
   R <- sum(r & Present)
   
-  # Advance time by one day - [ ] Think carefully about whether this should be at start or end of loop
+  # Advance time by one day
   DayTrueState <- DayTrueState + 1
   DayObsState <- DayObsState + 1
   
@@ -98,13 +77,9 @@ iterate <- function(TrueState,Present,DayTrueState,DayObsState,DaysSinceInfctn,D
   # Increase days since start of infectiousness by one day for infected individuals
   DaysSinceInfctsnss[i_s1|i_c1|i_s2|i_c2|r] <- DaysSinceInfctsnss[i_s1|i_c1|i_s2|i_c2|r] + 1
   
-  # Step 1: S -> E (infection)
+  # Transition 1: S -> E (infection)
   # lambda <- beta*Present*w*(h*(alpha*I_s1+I_s2)+alpha*I_c1+I_c2) + epsilon
   lambda <- beta*Present*w*(h*(alpha*I_s1+I_s2)+alpha*I_c1+I_c2)/sum(Present*w) + epsilon # Only individuals present in the shelter can be infected by others in the shelter, those not present can be infected by infectious individuals in the general population
-  # print(which(e))
-  # print(E)
-  # print(mean(lambda))
-  # print(paste0("sum(lambda)=",sum(lambda)))
   prob_infection <- 1-exp(-lambda)
   s_to_e <- (s & runif(N_pop)<prob_infection)
   NewInfection[s_to_e] <- 1 # Count new infections
@@ -113,10 +88,9 @@ iterate <- function(TrueState,Present,DayTrueState,DayObsState,DaysSinceInfctn,D
   TrueState[s_to_e] <- 2 # Update true state based on transmission/natural history
   DayTrueState[s_to_e] <- 0 # Re-set day in true state
   WaitingTime[s_to_e] <- rnbinom(sum(s_to_e),r_E,p_E) + 1 # Draw latent periods
-  # DaysPCRpos[s_to_e] <- WaitingTime[s_to_e] + sample(1:max_days_PCR_pos,sum(s_to_e),prob=revdiscrlnorm,replace=T)
   DaysSinceInfctn[s_to_e] <- 0
   
-  # Step 2: E -> I_s1, I_c1 (progression to presymptomatic infectious stage)
+  # Transition 2: E -> I_s1, I_c1 (progression to early infectious stage)
   e_to_i_1 <- (e & (DayTrueState==WaitingTime) & !e0ind)
   
   for (i in 1:4){
@@ -126,14 +100,14 @@ iterate <- function(TrueState,Present,DayTrueState,DayObsState,DaysSinceInfctn,D
   WaitingTime[e_to_i_1] <- rnbinom(sum(e_to_i_1),r_p,p_p) + 1 # Draw infectious periods
   DaysSinceInfctsnss[e_to_i_1] <- 0
   
-  # Treat progression of 2nd index case separately
+  # Treat progression of index case(s) separately
   e0_to_i_1 <- (e & (DayTrueState==WaitingTime) & e0ind)
-  TrueState[e0_to_i_1] <- 4 # assume 2nd index case had severe symptoms
+  TrueState[e0_to_i_1] <- 4 # assume index case had clinical symptoms
   DayTrueState[e0_to_i_1] <- 0 # Re-set day in true state
-  WaitingTime[e0_to_i_1] <- 2 # assume 2nd index case has presymptomatic duration of 2 days
+  WaitingTime[e0_to_i_1] <- 2 # assume index case has latent duration of 2 days
   DaysSinceInfctsnss[e0_to_i_1] <- 0
   
-  # Step 3: I_s1 -> I_s2, I_c1 -> I_c2 (symptom onset)
+  # Transition 3: I_s1 -> I_s2, I_c1 -> I_c2 (progression to late infectious stage)
   i_1_to_i_2 <- ((i_s1 | i_c1) & (DayTrueState==WaitingTime))
   
   TrueState[i_1_to_i_2] <- TrueState[i_1_to_i_2] + 2 # Update true state based on transmission/natural history: just add 2 for both transitions 3->5, 4->6
@@ -141,7 +115,7 @@ iterate <- function(TrueState,Present,DayTrueState,DayObsState,DaysSinceInfctn,D
   WaitingTime[i_1_to_i_2] <- rnbinom(sum(i_1_to_i_2),r_sx,p_sx) + 1
   DaysPCRpos[i_1_to_i_2] <- sample(min_days_PCR_pos:max_days_PCR_pos,sum(i_1_to_i_2),prob=discrnorm,replace=T)
   
-  # Step 4: I_s2, I_c2 -> R (recovery)
+  # Transition 4: I_s2, I_c2 -> R (recovery)
   i2_to_r <- ((i_s2 | i_c2) & (DayTrueState==WaitingTime))
   
   TrueState[i2_to_r] <- 7 # Update true state based on transmission/natural history
@@ -190,10 +164,6 @@ presence_update <- function(Present,HxPCR,ind,x,y){
     Present[Numbers_rm] <- F
     Numbers_add <- integer()
   } else if (y>x){
-    # print(x)
-    # print(y)
-    # # print(Risk[ind][1])
-    # print(length(which(ind & !Present & !HxPCR)))
     ind_absent_noHxPCR <- which(ind & !Present & !HxPCR) # individuals that have tested PCR positive cannot return to shelter
     Numbers_add <- resample(ind_absent_noHxPCR,min(y-x,length(ind_absent_noHxPCR))) # add number of individuals to match register if possible or all those in chosen risk group absent without positive PCR result if not
     Present[Numbers_add] <- T
@@ -289,14 +259,6 @@ calc_perc_reduction <- function(y,probs){
   perc_reduction[y[,1]==0,] <- 0
   q_reduction <- t(apply(perc_reduction,2,function(x){quantile(x,probs = probs,na.rm = T)}))
   return(list(perc_reduction=perc_reduction,q_reduction=q_reduction))
-}
-
-# Function to calculate percentage of outbreaks "averted": number of
-# simulations with no new infections for each intervention strategy out of
-# number of simulations with no interventions in which there was an outbreak
-calc_perc_outbreaks_averted <- function(y){
-  perc_outbreaks_averted <- 100*colSums(y[,2:ncol(y)]<3)/sum(y[,1]>=3)
-  return(perc_outbreaks_averted)
 }
 
 # Function to calculate probability of averting outbreak: proportion of no-intervention

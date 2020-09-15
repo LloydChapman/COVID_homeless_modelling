@@ -2,9 +2,6 @@ plot_interventions <- function(fnm,run_nm,ttls){
   load(fnm)
   
   infections_melt <- melt(infections)
-  # for (i in 1:6){
-  #   print(ggplot(infections_melt[infections_melt$Var3==i,],aes(x=Var2,y=value,group=as.factor(Var1))) + geom_line() + xlab("Day") + ylab("No. new infections") + theme(legend.position = "none"))
-  # }
   pdf(paste0("new_infections_interventions",run_nm,".pdf"),width = 4.5,height = 3.75)
   print(ggplot(infections_melt,aes(x=Var2,y=value,group=interaction(as.factor(Var1),as.factor(Var3)),col=as.factor(Var3))) + geom_line() + xlab("Day") + ylab("No. new infections") + scale_color_discrete(name = "Strategy", labels = c("None",as.character(1:(dim(infections)[3]-1))))) # + scale_alpha(guide = "none") #,alpha=1/Var3
   dev.off()
@@ -45,7 +42,6 @@ plot_interventions_by_strategy <- function(nsims,T_sim,run_nms,epsilons,interven
       names(infections_bnds_wide)[names(infections_bnds_wide)=="3"] <- "UB"
       infections_bnds_wide$iR0 <- factor(infections_bnds_wide$Var3,levels=unique(infections_bnds_wide$Var3)[order(unique(infections_bnds_wide$Var3),decreasing = T)])
       pdf(paste0("new_infections_interventions",j-1,"_epsilons",i-1,".pdf"),width = 4.5,height = 3.75)
-      # print(ggplot(infections_melt,aes(x=Var2,y=value,group=interaction(as.factor(Var1),as.factor(Var3)),col=as.factor(Var3),alpha=1/Var3)) + geom_line() + xlab("Day") + ylab("No. new infections") + scale_color_discrete(name = "R0",labels = paste(round(R0s,1),c("","(Seattle)","(Boston)","(SF)"))) + theme_classic()) # + scale_alpha(guide = "none") #,alpha=1/Var3
       print(ggplot(infections_bnds_wide,aes(x=Var2)) + geom_line(aes(x=Var2,y=mean,color=iR0),size=1) + geom_ribbon(aes(ymin=LB,ymax=UB,fill=iR0),alpha=0.2) + xlab("Day") + ylab("No. new infections") + ylim(0,45) + scale_color_manual(name = "R0",labels = lbls[length(lbls):1],values = clrs[length(clrs):1]) + scale_fill_manual(guide = F,values = clrs[length(clrs):1]) + ggtitle(ttls[j]) + theme_classic()) # + scale_alpha(guide = "none") #,alpha=1/Var3
       dev.off()
     }    
@@ -79,11 +75,9 @@ plot_PCR_testing_freq_SA <- function(fnm,run_nm,R0lbls){
   prob_outbreak_averted_melt <- melt(prob_outbreak_averted1)
   
   prob_outbreak_averted_melt$R0 <- R0s[prob_outbreak_averted_melt$Var2]
-  # prob_outbreak_averted_melt$testing_freq <- testing_freqs[prob_outbreak_averted_melt$Var1]
   prob_outbreak_averted_melt$days_btw_tests <- days_btw_tests[prob_outbreak_averted_melt$Var1]
   
   pdf(paste0("prob_outbreak_averted_vs_PCR_testing_freq",run_nm,".pdf"), width = 6, height = 4)
-  # print(ggplot(prob_outbreak_averted_melt,aes(x=testing_freq,y=value,group=as.factor(R0),color=as.factor(round(R0,1)))) + geom_point() + xlab("PCR testing frequency (testing events/week)") + ylab("Probability of averting outbreak") + scale_color_discrete(name = "R0"))
   print(ggplot(prob_outbreak_averted_melt,aes(x=days_btw_tests,y=value,group=as.factor(R0),color=as.factor(round(R0,1)))) + geom_point() + xlab("Frequency of testing (number of days between tests)") + ylab("Probability of averting outbreak") + ylim(0,1) + scale_color_discrete(name = "R0",labels = paste(round(R0s,1),R0lbls)) + theme_classic())
   dev.off()
   

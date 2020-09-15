@@ -1,0 +1,12 @@
+.DS_Store
+/*.csv
+*.xlsx
+*.pdf
+.Rproj
+.Rproj.user
+.Rhistory
+*.RData
+.Ruserdata
+set_PCR_test_pars.R
+sensitivity_analysis/
+old/

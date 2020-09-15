@@ -101,20 +101,6 @@ min_days_btw_tests <- 3 # minimum number of days between PCR tests
 # PCR testing once upon entry
 entry_PCR_test_compliance <- 0.8 # 80% compliance with PCR testing on entry
 
-# # Routine PCR testing
-# routine_PCR_test_compliance <- 0.8 # 1 # 80% compliance with routine PCR testing
-# sx_pos_PCR_test_compliance <- 0.8 # 80% compliance with PCR testing among those who screen symptom positive
-# 
-# # Mask wearing
-# mask_compliance <- 0.8 # 1 # 80% compliance with universal masking
-# mask_eff <- 0.3 # 1 # 30% reduction in transmission from universal masking
-# 
-# # Symptom screening sensitivity and specificity
-# sens_sx <- c(NA,NA,NA,NA,NA,0.4,NA) # sensitivities for states 1 to 7
-# spec_sx <- c(0.9,0.9,0.9,0.9,0.9,NA,0.9) # specificities for states 1 to 7
-# # sens_sx <- c(NA,NA,NA,NA,NA,1,NA) # sensitivities for states 1 to 7
-# # spec_sx <- c(1,1,1,1,1,NA,1) # specificities for states 1 to 7
-
 # Initialise variables
 Number <- 1:N_pop
 Resident <- rep(0,N_pop)
