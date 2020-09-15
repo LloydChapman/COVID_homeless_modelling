@@ -15,7 +15,7 @@ source("ABC_SMC_functions.R")
 source("set_data_and_init_condns.R")
 source("COVID_homeless_calibration.R")
 source("COVID_homeless_functions.R")
-source("plot_calibration2.R")
+source("plot_calibration.R")
 source("process_calibration.R")
 
 # Number of particles

@@ -2,7 +2,8 @@
 /*.csv
 *.xlsx
 *.pdf
-.Rproj
+*.Rproj
+*.png
 .Rproj.user
 .Rhistory
 *.RData
