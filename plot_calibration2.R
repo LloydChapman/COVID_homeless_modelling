@@ -1,4 +1,4 @@
-plot_calibration <- function(fnm1,fnm2,str,lm.low,lm.upp,end_date,D_S,D_T,D_C=NULL,testing_dates,sx_testing_dates,tol,ttl){
+plot_calibration <- function(fnm1,fnm2,run_nm,lm.low,lm.upp,end_date,D_S,D_T,D_C=NULL,testing_dates,sx_testing_dates,tol,ttl){
   # Load results
   res <- read.csv(fnm1,stringsAsFactors = F)
   N <- dim(res)[1]
@@ -6,22 +6,22 @@ plot_calibration <- function(fnm1,fnm2,str,lm.low,lm.upp,end_date,D_S,D_T,D_C=NU
   load(fnm2)
   
   # Plot posteriors
-  # pdf(paste0("beta_posterior",str,".pdf"),width = 5, height = 4)
+  # pdf(paste0("beta_posterior",run_nm,".pdf"),width = 5, height = 4)
   # hist(res[,1],freq = F,xlab = "beta",ylab = "Density",main = "")
   # dev.off()
-  pdf(paste0("R0_posterior",str,".pdf"),width = 5, height = 4)
+  pdf(paste0("R0_posterior",run_nm,".pdf"),width = 5, height = 4)
   hist(res[,1],breaks = seq(lm.low[1],lm.upp[1],by = 0.5),freq = F,xlab = "R0",ylab = "Density",main = "")
   dev.off()
-  pdf(paste0("E0_posterior",str,".pdf"),width = 5, height = 4)
+  pdf(paste0("E0_posterior",run_nm,".pdf"),width = 5, height = 4)
   hist(res[,2],breaks = (lm.low[2]-0.5):(lm.upp[2]+0.5),freq = F,xlab = "E0",ylab = "Density",main = "")
   dev.off()
-  pdf(paste0("T_posterior",str,".pdf"),width = 5, height = 4)
+  pdf(paste0("T_posterior",run_nm,".pdf"),width = 5, height = 4)
   hist(res[,3],breaks = (lm.low[3]-0.5):(lm.upp[3]+0.5),freq = F,xlab = "T",ylab = "Density",main = "")
   dev.off()
-  # pdf(paste0("R0_posterior",str,".pdf"),width = 5, height = 4)
+  # pdf(paste0("R0_posterior",run_nm,".pdf"),width = 5, height = 4)
   # hist(res[,4],freq = F,xlab = "R0",ylab = "Density",main = "")
   # dev.off()
-  pdf(paste0("beta_posterior",str,".pdf"),width = 5, height = 4)
+  pdf(paste0("beta_posterior",run_nm,".pdf"),width = 5, height = 4)
   hist(res[,4],freq = F,xlab = "beta",ylab = "Density",main = "")
   dev.off()
 
@@ -62,7 +62,7 @@ plot_calibration <- function(fnm1,fnm2,str,lm.low,lm.upp,end_date,D_S,D_T,D_C=NU
   p7 <- ggplot(res,aes(x=R0,y=T)) + stat_bin2d(aes(fill=..density..),binwidth=c(binwdths[1],binwdths[3]),show.legend = F) + theme_classic()
   p8 <- ggplot(res,aes(x=E0,y=T)) + stat_bin2d(aes(fill=..density..),binwidth=c(binwdths[2],binwdths[3]),show.legend = F) + theme_classic()
   p9 <- ggplot(res,aes(x=T)) + geom_histogram(aes(y=..density..),binwidth = binwdths[3]) + theme_classic()
-  pdf(paste0("parameter_correlation",str,".pdf"),width = 6,height = 6)
+  pdf(paste0("parameter_correlation",run_nm,".pdf"),width = 6,height = 6)
   print(grid.arrange(p1,p2,p3,p4,p5,p6,p7,p8,p9,nrow=3,ncol=3))
   dev.off()
 
@@ -76,7 +76,7 @@ plot_calibration <- function(fnm1,fnm2,str,lm.low,lm.upp,end_date,D_S,D_T,D_C=NU
   colnames(infections_mat) <- as.character(seq.Date(end_date-lm.upp[3]+1,end_date,by=1))
   # infections_melt <- melt(infections_mat)
   # infections_melt$Var2 <- as.Date(infections_melt$Var2)
-  # pdf(paste0("new_infections",str,".pdf"),width = 4.5,height = 3.75)
+  # pdf(paste0("new_infections",run_nm,".pdf"),width = 4.5,height = 3.75)
   # print(ggplot() + geom_line(aes(x=Var2,y=value,group=Var1,col=as.factor(Var1)),infections_melt) + xlab("Date") + ylab("No. new infections") + theme(legend.position = "none") + theme_classic()) #,group=Var2,col=as.factor(Var2)
   # dev.off()
   infections_bnds <- rbind(apply(infections_mat,2,mean),apply(infections_mat,2,range))
@@ -86,7 +86,7 @@ plot_calibration <- function(fnm1,fnm2,str,lm.low,lm.upp,end_date,D_S,D_T,D_C=NU
   names(infections_bnds_wide)[names(infections_bnds_wide)=="2"] <- "LB"
   names(infections_bnds_wide)[names(infections_bnds_wide)=="3"] <- "UB"
   infections_bnds_wide$Var2 <- as.Date(infections_bnds_wide$Var2)
-  pdf(paste0("new_infections",str,".pdf"),width = 4.5,height = 3.75)
+  pdf(paste0("new_infections",run_nm,".pdf"),width = 4.5,height = 3.75)
   print(ggplot(infections_bnds_wide) + geom_line(aes(x=Var2,y=mean),size=1) + geom_ribbon(aes(x=Var2,ymin=LB,ymax=UB),alpha=0.2) + xlab("Date") + ylab("No. new infections") + theme(legend.position = "none") + theme_classic())
   dev.off()
   
@@ -99,11 +99,11 @@ plot_calibration <- function(fnm1,fnm2,str,lm.low,lm.upp,end_date,D_S,D_T,D_C=NU
   colnames(cases_mat1) <- as.character(seq.Date(end_date-lm.upp[3]+1,end_date,by=1))
   cases_melt <- melt(cases_mat1)
   cases_melt$Var2 <- as.Date(cases_melt$Var2)
-  pdf(paste0("new_cases",str,".pdf"),width = 5,height = 4)
+  pdf(paste0("new_cases",run_nm,".pdf"),width = 5,height = 4)
   print(ggplot() + geom_line(aes(x=Var2,y=value,group=Var1,col=as.factor(Var1)),cases_melt) + xlab("Date") + ylab("No. new symptomatic cases") + theme(legend.position = "none")) #,group=Var2,col=as.factor(Var2)
   dev.off()
 
-  # pdf(paste0("onsets_vs_time",str,".pdf"),width = 6,height = 5)
+  # pdf(paste0("onsets_vs_time",run_nm,".pdf"),width = 6,height = 5)
   # new_infections_melt <- melt(new_infections_mat)
   # ggplot(new_infections_melt,aes(x=Var2,y=value,col=as.factor(Var1))) + geom_line() + xlab("Day") + ylab("No. of onsets") + theme(legend.position = "none")
   # dev.off()
@@ -127,7 +127,7 @@ plot_calibration <- function(fnm1,fnm2,str,lm.low,lm.upp,end_date,D_S,D_T,D_C=NU
   #
   # num_infctns <- apply(tE,2,function(y) sapply(1:T_sim,function(x) sum(y==x,na.rm = T)))
   # num_infctns_melt <- melt(num_infctns)
-  # pdf(paste0("new_infections",str,".pdf"),width = 5,height = 4)
+  # pdf(paste0("new_infections",run_nm,".pdf"),width = 5,height = 4)
   # ggplot() + geom_line(aes(x=Var1,y=value,group=Var2,col=as.factor(Var2)),num_infctns_melt) + xlab("Day") + ylab("No. new infections") + theme(legend.position = "none") #,group=Var2,col=as.factor(Var2)
   # dev.off()
   #
@@ -137,7 +137,7 @@ plot_calibration <- function(fnm1,fnm2,str,lm.low,lm.upp,end_date,D_S,D_T,D_C=NU
   # }
   #
   # detectable_viral_load_melt <- melt(detectable_viral_load_mat)
-  # pdf(paste0("num_detectabe_viral_load_vs_time",str,".pdf"),width = 5, height = 4)
+  # pdf(paste0("num_detectabe_viral_load_vs_time",run_nm,".pdf"),width = 5, height = 4)
   # ggplot() + geom_line(aes(x=Var2,y=value,col=as.factor(Var1)),detectable_viral_load_melt) + geom_line(aes(x=day,y=PCRpos),data.frame(day=c(12,12),PCRpos=range(PCRpos_mat))) + geom_point(aes(x=12,y=D_T),col="black",size=2) + xlab("Day") + ylab("No. with detectable viral load") + theme(legend.position = "none")
   # dev.off()
 
@@ -153,7 +153,7 @@ plot_calibration <- function(fnm1,fnm2,str,lm.low,lm.upp,end_date,D_S,D_T,D_C=NU
   }
 
   # if (length(PCRpos_sx_testing_mat)==0){
-  #   pdf(paste0("calibration",str,".pdf"),width = 6, height = 5)
+  #   pdf(paste0("calibration",run_nm,".pdf"),width = 6, height = 5)
   #   print(ggplot() + geom_line(aes(x=variable,y=value,group=as.factor(sim)),PCRpos_melt,col="#999999") +
   #           geom_point(aes(x=date,y=PCRpos),data.frame(date=testing_dates,PCRpos=D_T),col="black",size=2) +
   #           geom_line(aes(x=date,y=CI,group=as.factor(date)),data.frame(date=rep(testing_dates,2),CI=pmax(c(D_T-tol,D_T+tol),0)),size=1) +
@@ -166,7 +166,7 @@ plot_calibration <- function(fnm1,fnm2,str,lm.low,lm.upp,end_date,D_S,D_T,D_C=NU
   #   PCRpos_sx_testing_melt <- melt(PCRpos_sx_testing_df,id.vars="sim")
   #   PCRpos_sx_testing_melt$variable <- as.Date(PCRpos_sx_testing_melt$variable,origin="1970-01-01")
   #
-  #   pdf(paste0("calibration",str,".pdf"),width = 6, height = 5)
+  #   pdf(paste0("calibration",run_nm,".pdf"),width = 6, height = 5)
   #   print(ggplot() + geom_line(aes(x=variable,y=value,group=as.factor(sim)),PCRpos_melt,col="#999999") +
   #           geom_point(aes(x=date,y=PCRpos),data.frame(date=testing_dates,PCRpos=D_T),col="black",size=2) +
   #           geom_line(aes(x=date,y=CI,group=as.factor(date)),data.frame(date=rep(testing_dates,2),CI=pmax(c(D_T-tol,D_T+tol),0)),size=1) +
@@ -193,10 +193,10 @@ plot_calibration <- function(fnm1,fnm2,str,lm.low,lm.upp,end_date,D_S,D_T,D_C=NU
       geom_point(aes(x=date,y=PCRpos,col="#0000FF"),data.frame(date=sx_testing_dates,PCRpos=D_S),size=3) +
       # scale_color_identity(name="Testing",guide="legend",labels=c("early symptomatic cases (simulated)","random (simulated)","random (observed)","early symptomatic cases (observed)"))
       scale_color_manual(name="Type of testing",labels=c("#0000FF"="early symptomatic cases (observed)","#9090ff"="early symptomatic cases (simulated)","#bfbfbf"="random (simulated)","black"="random (observed)"),values=c("#0000FF","#9090ff","#bfbfbf","black"))
-    pdf(paste0("calibration",str,".pdf"),width = 7.3, height = 3.75)
+    pdf(paste0("calibration",run_nm,".pdf"),width = 7.3, height = 3.75)
   } else {
     p <- p + scale_color_identity()
-    pdf(paste0("calibration",str,".pdf"),width = 4.5, height = 3.75)
+    pdf(paste0("calibration",run_nm,".pdf"),width = 4.5, height = 3.75)
   }
   print(p)
   dev.off()
@@ -208,7 +208,7 @@ plot_calibration <- function(fnm1,fnm2,str,lm.low,lm.upp,end_date,D_S,D_T,D_C=NU
     cases_df$sim <- row.names(cases_df)
     cases_melt <- melt(cases_df,id.vars="sim")
     cases_melt$variable <- as.Date(cases_melt$variable)
-    pdf(paste0("cases_calibration",str,".pdf"),width = 4.5, height = 3.75)
+    pdf(paste0("cases_calibration",run_nm,".pdf"),width = 4.5, height = 3.75)
     print(ggplot() + geom_line(aes(x=variable,y=value,group=as.factor(sim)),cases_melt,col="#bfbfbf") +
       geom_point(aes(x=variable,y=value,group=as.factor(sim)),cases_melt,col="#bfbfbf",pch=19) +
       geom_point(aes(x=date,y=cases),data.frame(date=case_dates,cases=D_C),col="black",size=3) +
@@ -220,7 +220,7 @@ plot_calibration <- function(fnm1,fnm2,str,lm.low,lm.upp,end_date,D_S,D_T,D_C=NU
   # for (i in 1:length(sim_pop_list)){
   #   num_PCRpos_staff[i] <- sum(sim_pop_list[[i]]$HxPCR[sim_pop_list[[i]]$Resident==0],na.rm = T) 
   # }
-  # pdf(paste0("num_PCRpos_staff",str,".pdf"),width = 5, height = 4)
+  # pdf(paste0("num_PCRpos_staff",run_nm,".pdf"),width = 5, height = 4)
   # hist(num_PCRpos_staff,breaks=seq(min(num_PCRpos_staff)-0.5,max(num_PCRpos_staff)+0.5),xlab="No. PCR positive staff",main="Distribution of no. of PCR positive staff")
   # dev.off()
 }

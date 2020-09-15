@@ -1,10 +1,10 @@
-# Seattle data from MMWR paper and report
+# Seattle data from Tobolowsky MMWR 2020 and Mosites MMWR 2020
 
 # Load CCMS data if available
 CCMS_data <- NULL
 
 # SF CCMS data for proportions in different risk groups
-SF_CCMS_data <- read.csv("../Data/CCMS_data.csv",stringsAsFactors = F)
+SF_CCMS_data <- read.csv("data/CCMS_data.csv",stringsAsFactors = F)
 names(SF_CCMS_data)[1] <- "Date"
 SF_CCMS_data$Date <- as.Date(SF_CCMS_data$Date,format = "%d-%b")
 # Remove empty rows from after Apr 10
@@ -22,7 +22,7 @@ end_date <- as.Date("4/8/2020",format = "%m/%d/%Y")
 date_first_case <- start_date
 
 # Load Seattle case data obtained from https://www.kingcounty.gov/depts/health/covid-19/data/daily-summary.aspx
-Seattle_case_data <- read.csv("../Data/Seattle_cases.csv",stringsAsFactors = F)
+Seattle_case_data <- read.csv("data/Seattle_cases.csv",stringsAsFactors = F)
 Seattle_case_data$Date <- as.Date(Seattle_case_data$Date,format = "%m/%d/%y")
 
 # Set number of residents and staff in shelter and duration of simulation
@@ -41,15 +41,14 @@ reporting_delay <- 7 # days from start of infectiousness = 2 days presymptomatic
 trnsmssn_window <- 21 # days
 underreporting <- 10 # under-reporting ratio for confirmed cases vs infections
 homeless_RR <- 2 # relative-risk of infection for homeless individuals
-mean_daily_cases <- mean(Seattle_case_data$Cases[Seattle_case_data$Date>=end_date-trnsmssn_window+reporting_delay & Seattle_case_data$Date<=end_date+reporting_delay]) # mean of confirmed cases for period of interest
-mean_daily_inc <- mean_daily_cases/753675 # population estimate from US Census Bureau [https://www.census.gov/quickfacts/fact/table/seattlecitywashington/PST045219]
-epsilon <- mean_daily_inc*underreporting*homeless_RR # adjusted transmission rate outside shelter
+epsilon <- calc_epsilon(Seattle_case_data,end_date-trnsmssn_window+reporting_delay,end_date+reporting_delay,753675,underreporting,homeless_RR) # population estimate from US Census Bureau [https://www.census.gov/quickfacts/fact/table/seattlecitywashington/PST045219]
 
 # Flag for whether to count hospitalisations and deaths
 hospitalisation <- F # false as data not available
 
 # Set PCR test parameters
-source("set_PCR_test_pars.R")
+sens <- sensitivity("constant",max_days_PCR_pos,const_sens = 0.75) # sensitivity as a function of days since start of infectiousness
+spec <- c(1,1,NA,NA,NA,NA,NA) # specificities for states 1 to 7
 
 # PCR testing frequency
 testing_dates <- as.Date(c("4/1/2020","4/8/2020"),format="%m/%d/%Y") # testing dates

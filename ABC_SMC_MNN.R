@@ -1,10 +1,10 @@
-ABC_SMC_MNN <- function(shelter,run_nm){
+ABC_SMC_MNN <- function(shelter,N,run_nm){
 
 # Set data and initial conditions for shelter
 set_data_and_init_condns(shelter)
 
-# Number of particles
-N <- 1000
+# # Number of particles
+# N <- 1000
 
 # Number of neighbours for covariance matrix calculations
 M <- 50
@@ -170,7 +170,7 @@ for(g in 1:G){
   			  # start_time <- Sys.time()
   				res <- COVID_homeless_model(N_res,N_staff,N_pop,T_sim_star,w,beta_star,epsilon,r_E,p_E,p_s,h,r_p,p_p,alpha,r_sx,p_sx,
   				                            p_h,p_ICU,p_d,mean_days_PCR_pos,min_days_PCR_pos,max_days_PCR_pos,discrnorm,
-  				                            hospitalisation,fit,fit_extrap,spec,testing_days,N_tested,sx_testing_days,N_sx_tested,
+  				                            hospitalisation,sens,spec,testing_days,N_tested,sx_testing_days,N_sx_tested,
   				                            tmp,Number,Resident,Present,Risk,Age,e0ind,TrueState,DayTrueState,
   				                            WaitingTime,DaysSinceInfctn,DaysSinceInfctsnss,DaysPCRpos,shelter)
   				# end_time <- Sys.time()
@@ -263,7 +263,7 @@ for(g in 1:G){
 
 # Calculate ESS
 ess <- ESS(w.old)
-print(paste0(shelter,": ESS = ",ESS))
+print(paste0(shelter,": ESS = ",ess))
 
 # save(infections_mat,cases_mat,PCRpos_sx_testing_mat,PCRpos_mat,state_arr,sim_pop_list,ess,file = "sim_output_10.RData")
 save(infections_list,cases_list,PCRpos_sx_testing_mat,PCRpos_mat,cases_mat,state_list,sim_pop_list,ess,acc_rate,file = paste0("sim_output",run_nm,".RData"))

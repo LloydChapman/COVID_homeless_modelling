@@ -11,52 +11,82 @@ calc_beta <- function(R0,w,Present,p_s,Risk,h,alpha,mu_p,mu_sx){
 }
 
 calc_epsilon <- function(case_data,start_date,end_date,pop,underreporting,homeless_RR){
-  mean_daily_cases <- sum(case_data$Cases[case_data$Date>=start_date & case_data$Date<=end_date])/as.numeric(end_date-start_date+1)
+  mean_daily_cases <- sum(case_data$Cases[case_data$Date>=start_date & case_data$Date<=end_date])/as.numeric(end_date-start_date+1) # mean of confirmed cases for period of interest
   mean_daily_inc <- mean_daily_cases/pop
-  epsilon <- mean_daily_inc*underreporting*homeless_RR
+  epsilon <- mean_daily_inc*underreporting*homeless_RR # adjusted transmission rate outside shelter
   return(epsilon)
 }
 
+# # PCR sensitivity as a function of time since start of infectiousness
+# sens <- function(x,fit,fit_extrap,max_days_PCR_pos){
+#   # res <- rep(1,length(x))
+#   # res <- rep(0.75,length(x))
+#   res <- rep(0,length(x))
+#   x1 <- length(fit$fitted.values)
+#   idx <- (x>0 & x<=x1)
+#   if (any(idx)){
+#     res[idx] <- suppressWarnings(predict(fit,data.frame(x=x[idx])))
+#   }
+#   # idx1 <- which(x>x1 & x<=max_days_PCR_pos)
+#   # for (i in 1:length(idx1)){
+#   #   res[idx1[i]] <- max(fit_extrap$y[fit_extrap$x==x[idx1[i]]],0)
+#   # }
+#   idx1 <- (x>x1 & x<=max_days_PCR_pos)
+#   if (any(idx1)){
+#     res[idx1] <- pmax(sapply(x[idx1],function(x) fit_extrap$y[fit_extrap$x==x]),0) # ensure sensitivity is non-negative
+#   }
+#   return(res)
+# }
+
 # PCR sensitivity as a function of time since start of infectiousness
-sens <- function(x,fit,fit_extrap,max_days_PCR_pos){
-  # res <- rep(1,length(x))
-  res <- rep(0.75,length(x))
-  # res <- rep(0,length(x))
-  # x1 <- length(fit$fitted.values)
-  # idx <- (x>0 & x<=x1)
-  # if (any(idx)){
-  #   res[idx] <- suppressWarnings(predict(fit,data.frame(x=x[idx])))
-  # }
-  # # idx1 <- which(x>x1 & x<=max_days_PCR_pos)
-  # # for (i in 1:length(idx1)){
-  # #   res[idx1[i]] <- max(fit_extrap$y[fit_extrap$x==x[idx1[i]]],0)
-  # # }
-  # idx1 <- (x>x1 & x<=max_days_PCR_pos)
-  # if (any(idx1)){
-  #   res[idx1] <- pmax(sapply(x[idx1],function(x) fit_extrap$y[fit_extrap$x==x]),0) # ensure sensitivity is non-negative
-  # }
+sensitivity <- function(sens_type,max_days_PCR_pos,const_sens=NULL,mu_E=NULL){
+  if (sens_type=="constant"){
+    if (is.null(const_sens)){
+      stop("const_sens is NULL - please specify const_sens")
+    }
+    res <- c(rep(const_sens,max_days_PCR_pos))
+  } else if (sens_type=="time-varying"){
+    # Time-varying sensitivity - uncomment to use time-varying sensitivity from Kucirka et al Ann. Intern. Med.
+    if (is.null(mu_E)){
+      stop("mu_E is NULL - please specify mu_E")
+    }
+    FNR <- read.csv("data/digitised_sens_graph.csv",header = F, stringsAsFactors = F)
+    x <- round(FNR[(round(mu_E)+1):nrow(FNR),1],0)-round(mu_E)
+    y <- 1 - FNR[(round(mu_E)+1):nrow(FNR),2]
+    fit <- lm(y ~ bs(x,knots = c(3,4,6,7,10,15,16)-round(mu_E)))
+    # # Think above few lines should be changed to the three below, but need to check
+    # x <- round(FNR[round(mu_E):nrow(FNR),1],0)-round(mu_E)+1
+    # y <- 1 - FNR[round(mu_E):nrow(FNR),2]
+    # fit <- lm(y ~ bs(x,knots = c(3,4,6,7,10,15,16)-round(mu_E)+1))
+    # Linearly extrapolate sensitivity to maximum number of days of detectable viral load
+    fit_extrap <- approxExtrap(x,y,(x[length(x)]+1):max_days_PCR_pos)
+    res <- c(predict(fit),fit_extrap$y)
+    res[res<0] <- 0
+  } else {
+    print("sensitivity type not recognised - please specify either \"constant\" or \"time-varying\"\n",quote = F)
+  }
   return(res)
 }
 
-resample <- function(x,...) x[sample.int(length(x),...)]
+resample <- function(x,...){x[sample.int(length(x),...)]}
 
 iterate <- function(TrueState,Present,DayTrueState,DayObsState,DaysSinceInfctn,DaysSinceInfctsnss,beta,w,h,alpha,epsilon,N_pop,WaitingTime,r_E,p_E,e0ind,Risk,p_s,r_p,p_p,NewInfection,Background,DaysPCRpos,min_days_PCR_pos,max_days_PCR_pos,discrnorm,Resident,hospitalisation = F,Hospitalised = NULL,Dead = NULL,p_h = NULL,p_ICU = NULL,p_d = NULL){
   # Create index variables
   s <- (TrueState == 1)
   e <- (TrueState == 2)
-  i_m_p <- (TrueState == 3)
-  i_s_p <- (TrueState == 4)
-  i_m_sx <- (TrueState == 5)
-  i_s_sx <- (TrueState == 6)
+  i_s1 <- (TrueState == 3)
+  i_c1 <- (TrueState == 4)
+  i_s2 <- (TrueState == 5)
+  i_c2 <- (TrueState == 6)
   r <- (TrueState == 7)
   
   # Count numbers in different states inside shelter
   S <- sum(s & Present)
   E <- sum(e & Present)
-  I_m_p <- sum(w*(i_m_p & Present))
-  I_s_p <- sum(w*(i_s_p & Present))
-  I_m_sx <- sum(w*(i_m_sx & Present))
-  I_s_sx <- sum(w*(i_s_sx & Present))
+  I_s1 <- sum(w*(i_s1 & Present))
+  I_c1 <- sum(w*(i_c1 & Present))
+  I_s2 <- sum(w*(i_s2 & Present))
+  I_c2 <- sum(w*(i_c2 & Present))
   R <- sum(r & Present)
   
   # Advance time by one day - [ ] Think carefully about whether this should be at start or end of loop
@@ -64,83 +94,83 @@ iterate <- function(TrueState,Present,DayTrueState,DayObsState,DaysSinceInfctn,D
   DayObsState <- DayObsState + 1
   
   # Increase days since infection by one day for infected individuals
-  DaysSinceInfctn[e|i_m_p|i_s_p|i_m_sx|i_s_sx|r] <- DaysSinceInfctn[e|i_m_p|i_s_p|i_m_sx|i_s_sx|r] + 1
+  DaysSinceInfctn[e|i_s1|i_c1|i_s2|i_c2|r] <- DaysSinceInfctn[e|i_s1|i_c1|i_s2|i_c2|r] + 1
   # Increase days since start of infectiousness by one day for infected individuals
-  DaysSinceInfctsnss[i_m_p|i_s_p|i_m_sx|i_s_sx|r] <- DaysSinceInfctsnss[i_m_p|i_s_p|i_m_sx|i_s_sx|r] + 1
+  DaysSinceInfctsnss[i_s1|i_c1|i_s2|i_c2|r] <- DaysSinceInfctsnss[i_s1|i_c1|i_s2|i_c2|r] + 1
   
   # Step 1: S -> E (infection)
-  # lambda <- beta*Present*w*(h*(alpha*I_m_p+I_m_sx)+alpha*I_s_p+I_s_sx) + epsilon
-  lambda <- beta*Present*w*(h*(alpha*I_m_p+I_m_sx)+alpha*I_s_p+I_s_sx)/sum(Present*w) + epsilon # Only individuals present in the shelter can be infected by others in the shelter, those not present can be infected by infectious individuals in the general population
+  # lambda <- beta*Present*w*(h*(alpha*I_s1+I_s2)+alpha*I_c1+I_c2) + epsilon
+  lambda <- beta*Present*w*(h*(alpha*I_s1+I_s2)+alpha*I_c1+I_c2)/sum(Present*w) + epsilon # Only individuals present in the shelter can be infected by others in the shelter, those not present can be infected by infectious individuals in the general population
   # print(which(e))
   # print(E)
   # print(mean(lambda))
   # print(paste0("sum(lambda)=",sum(lambda)))
   prob_infection <- 1-exp(-lambda)
-  s2e <- (s & runif(N_pop)<prob_infection)
-  NewInfection[s2e] <- 1 # Count new infections
-  Background[s2e] <- (runif(sum(s2e)) < epsilon/lambda[s2e])
+  s_to_e <- (s & runif(N_pop)<prob_infection)
+  NewInfection[s_to_e] <- 1 # Count new infections
+  Background[s_to_e] <- (runif(sum(s_to_e)) < epsilon/lambda[s_to_e])
   
-  TrueState[s2e] <- 2 # Update true state based on transmission/natural history
-  DayTrueState[s2e] <- 0 # Re-set day in true state
-  WaitingTime[s2e] <- rnbinom(sum(s2e),r_E,p_E) + 1 # Draw latent periods
-  # DaysPCRpos[s2e] <- WaitingTime[s2e] + sample(1:max_days_PCR_pos,sum(s2e),prob=revdiscrlnorm,replace=T)
-  DaysSinceInfctn[s2e] <- 0
+  TrueState[s_to_e] <- 2 # Update true state based on transmission/natural history
+  DayTrueState[s_to_e] <- 0 # Re-set day in true state
+  WaitingTime[s_to_e] <- rnbinom(sum(s_to_e),r_E,p_E) + 1 # Draw latent periods
+  # DaysPCRpos[s_to_e] <- WaitingTime[s_to_e] + sample(1:max_days_PCR_pos,sum(s_to_e),prob=revdiscrlnorm,replace=T)
+  DaysSinceInfctn[s_to_e] <- 0
   
-  # Step 2: E -> I_m_p, I_s_p (progression to presymptomatic infectious stage)
-  e2i_p <- (e & (DayTrueState==WaitingTime) & !e0ind)
+  # Step 2: E -> I_s1, I_c1 (progression to presymptomatic infectious stage)
+  e_to_i_1 <- (e & (DayTrueState==WaitingTime) & !e0ind)
   
   for (i in 1:4){
-    TrueState[e2i_p & Risk==i] <- 3 + (runif(sum(e2i_p & Risk==i)) < p_s[i]) # Update true state based on transmission/natural history
+    TrueState[e_to_i_1 & Risk==i] <- 3 + (runif(sum(e_to_i_1 & Risk==i)) < p_s[i]) # Update true state based on transmission/natural history
   }
-  DayTrueState[e2i_p] <- 0 # Re-set day in true state 
-  WaitingTime[e2i_p] <- rnbinom(sum(e2i_p),r_p,p_p) + 1 # Draw infectious periods
-  DaysSinceInfctsnss[e2i_p] <- 0
+  DayTrueState[e_to_i_1] <- 0 # Re-set day in true state 
+  WaitingTime[e_to_i_1] <- rnbinom(sum(e_to_i_1),r_p,p_p) + 1 # Draw infectious periods
+  DaysSinceInfctsnss[e_to_i_1] <- 0
   
   # Treat progression of 2nd index case separately
-  e02i_p <- (e & (DayTrueState==WaitingTime) & e0ind)
-  TrueState[e02i_p] <- 4 # assume 2nd index case had severe symptoms
-  DayTrueState[e02i_p] <- 0 # Re-set day in true state
-  WaitingTime[e02i_p] <- 2 # assume 2nd index case has presymptomatic duration of 2 days
-  DaysSinceInfctsnss[e02i_p] <- 0
+  e0_to_i_1 <- (e & (DayTrueState==WaitingTime) & e0ind)
+  TrueState[e0_to_i_1] <- 4 # assume 2nd index case had severe symptoms
+  DayTrueState[e0_to_i_1] <- 0 # Re-set day in true state
+  WaitingTime[e0_to_i_1] <- 2 # assume 2nd index case has presymptomatic duration of 2 days
+  DaysSinceInfctsnss[e0_to_i_1] <- 0
   
-  # Step 3: I_m_p -> I_m_sx, I_s_p -> I_s_sx (symptom onset)
-  i_p2i_sx <- ((i_m_p | i_s_p) & (DayTrueState==WaitingTime))
+  # Step 3: I_s1 -> I_s2, I_c1 -> I_c2 (symptom onset)
+  i_1_to_i_2 <- ((i_s1 | i_c1) & (DayTrueState==WaitingTime))
   
-  TrueState[i_p2i_sx] <- TrueState[i_p2i_sx] + 2 # Update true state based on transmission/natural history: just add 2 for both transitions 3->5, 4->6
-  DayTrueState[i_p2i_sx] <- 0 # Re-set day in true state
-  WaitingTime[i_p2i_sx] <- rnbinom(sum(i_p2i_sx),r_sx,p_sx) + 1
-  DaysPCRpos[i_p2i_sx] <- sample(min_days_PCR_pos:max_days_PCR_pos,sum(i_p2i_sx),prob=discrnorm,replace=T)
+  TrueState[i_1_to_i_2] <- TrueState[i_1_to_i_2] + 2 # Update true state based on transmission/natural history: just add 2 for both transitions 3->5, 4->6
+  DayTrueState[i_1_to_i_2] <- 0 # Re-set day in true state
+  WaitingTime[i_1_to_i_2] <- rnbinom(sum(i_1_to_i_2),r_sx,p_sx) + 1
+  DaysPCRpos[i_1_to_i_2] <- sample(min_days_PCR_pos:max_days_PCR_pos,sum(i_1_to_i_2),prob=discrnorm,replace=T)
   
-  # Step 4: I_m_sx, I_s_sx -> R (recovery)
-  i_s2r <- ((i_m_sx | i_s_sx) & (DayTrueState==WaitingTime))
+  # Step 4: I_s2, I_c2 -> R (recovery)
+  i2_to_r <- ((i_s2 | i_c2) & (DayTrueState==WaitingTime))
   
-  TrueState[i_s2r] <- 7 # Update true state based on transmission/natural history
-  DayTrueState[i_s2r] <- 0 # Re-set day in true state
+  TrueState[i2_to_r] <- 7 # Update true state based on transmission/natural history
+  DayTrueState[i2_to_r] <- 0 # Re-set day in true state
   
   if (hospitalisation){
     for (j in 1:4){
-      i_s_sx_Risk_j <- (Present & i_s_sx & i_s2r & Risk==j)
-      i_hosp <- (runif(sum(i_s_sx_Risk_j)) < p_h[j])
+      i_c2_Risk_j <- (Present & i_c2 & i2_to_r & Risk==j)
+      i_hosp <- (runif(sum(i_c2_Risk_j)) < p_h[j])
       if (any(i_hosp)){
-        Hospitalised[i_s_sx_Risk_j] <- i_hosp
-        Present[i_s_sx_Risk_j] <- !i_hosp
+        Hospitalised[i_c2_Risk_j] <- i_hosp
+        Present[i_c2_Risk_j] <- !i_hosp
         i_d <- ((runif(sum(i_hosp)) < p_ICU) & (runif(sum(i_hosp)) < p_d[j]))
-        Dead[i_s_sx_Risk_j][i_hosp] <- i_d
+        Dead[i_c2_Risk_j][i_hosp] <- i_d
       }
     }    
   }
   
   # Count number of new infections in residents and staff
-  infections_res <- sum(s2e & Resident==1)
-  infections_staff <- sum(s2e & Resident==0)
-  bckgrnd_infections_res <- sum(s2e & Resident==1 & Background)
-  bckgrnd_infections_staff <- sum(s2e & Resident==0 & Background)
+  infections_res <- sum(s_to_e & Resident==1)
+  infections_staff <- sum(s_to_e & Resident==0)
+  bckgrnd_infections_res <- sum(s_to_e & Resident==1 & Background)
+  bckgrnd_infections_staff <- sum(s_to_e & Resident==0 & Background)
   
   # Count number of new clinical cases in residents and staff
-  cases_res <- sum(i_p2i_sx & i_s_p & Resident==1)
-  cases_staff <- sum(i_p2i_sx & i_s_p & Resident==0)
-  bckgrnd_cases_res <- sum(i_p2i_sx & i_s_p & Resident==1 & Background)
-  bckgrnd_cases_staff <- sum(i_p2i_sx & i_s_p & Resident==0 & Background)
+  cases_res <- sum(i_1_to_i_2 & i_c1 & Resident==1)
+  cases_staff <- sum(i_1_to_i_2 & i_c1 & Resident==0)
+  bckgrnd_cases_res <- sum(i_1_to_i_2 & i_c1 & Resident==1 & Background)
+  bckgrnd_cases_staff <- sum(i_1_to_i_2 & i_c1 & Resident==0 & Background)
   
   return(list(TrueState=TrueState,DayTrueState=DayTrueState,DayObsState=DayObsState,
               WaitingTime=WaitingTime,DaysSinceInfctn=DaysSinceInfctn,DaysSinceInfctsnss=DaysSinceInfctsnss,
@@ -175,18 +205,20 @@ presence_update <- function(Present,HxPCR,ind,x,y){
   return(list(Present=Present,Numbers_rm=Numbers_rm,Numbers_add=Numbers_add))
 }
 
+prob_pos_test <- function(y,max_days_PCR_pos,sens){sapply(y,function(x){ifelse(x>0 & x<=max_days_PCR_pos,sens[x],0)})}
+
 # Function for updates from PCR testing
-PCR_testing_update <- function(Tested,DayTested,idx,state,spec,DaysSinceInfctsnss,fit,fit_extrap,max_days_PCR_pos,DayTrueState,DaysPCRpos,WaitingTime,ObsState,DayObsState,HxPCR,PCRpos,t,PCRpos_removed){
+PCR_testing_update <- function(Tested,DayTested,idx,state,spec,DaysSinceInfctsnss,sens,max_days_PCR_pos,DayTrueState,DaysPCRpos,WaitingTime,ObsState,DayObsState,HxPCR,PCRpos,t,PCRpos_removed){
   Tested[idx] <- 1
   DayTested[idx] <- t
   if (state %in% c(1,2)){
     ni2i <- (runif(length(idx))<1-spec)
   } else if (state %in% c(3,4)){
-    ni2i <- (runif(length(idx))<sens(DaysSinceInfctsnss[idx],fit,fit_extrap,max_days_PCR_pos)) # Infected and test is positive
+    ni2i <- (runif(length(idx))<prob_pos_test(DaysSinceInfctsnss[idx]+1,max_days_PCR_pos,sens)) # Infected and test is positive
   } else if (state %in% c(5,6)){
-    ni2i <- (DayTrueState[idx]<=DaysPCRpos[idx] & runif(length(idx))<sens(DaysSinceInfctsnss[idx],fit,fit_extrap,max_days_PCR_pos)) # Time since sx onset < duration of PCR positivity (viraemia) and test is positive
+    ni2i <- (DayTrueState[idx]<=DaysPCRpos[idx] & runif(length(idx))<prob_pos_test(DaysSinceInfctsnss[idx]+1,max_days_PCR_pos,sens)) # Time since sx onset < duration of PCR positivity (viraemia) and test is positive
   } else {
-    ni2i <- (WaitingTime[idx]+DayTrueState[idx]<=DaysPCRpos[idx] & runif(length(idx))<sens(DaysSinceInfctsnss[idx],fit,fit_extrap,max_days_PCR_pos)) # Time since sx onset = waiting time in sx state + time in recovered state < duration of PCR positivity and test is positive 
+    ni2i <- (WaitingTime[idx]+DayTrueState[idx]<=DaysPCRpos[idx] & runif(length(idx))<prob_pos_test(DaysSinceInfctsnss[idx]+1,max_days_PCR_pos,sens)) # Time since sx onset = waiting time in sx state + time in recovered state < duration of PCR positivity and test is positive 
   }
   ObsState[idx] <- 1 + ni2i # update observed data if tested positive
   DayObsState[idx][ni2i] <- 0 # re-set day in observed state
@@ -199,7 +231,7 @@ PCR_testing_update <- function(Tested,DayTested,idx,state,spec,DaysSinceInfctsns
 }
 
 # Function for updates resulting from symptom screening
-sx_screening_update <- function(state,TrueState,ObsState,Present,PCRtestsWeek,max_PCR_tests_per_week,min_days_btw_tests,sens_sx,spec_sx,HxSx,sx_pos_PCR_test_compliance,PCRtests,Tested,DayTested,spec,DaysSinceInfctsnss,fit,fit_extrap,max_days_PCR_pos,DayTrueState,DaysPCRpos,WaitingTime,DayObsState,HxPCR,PCRpos,t,PCRpos_removed){
+sx_screening_update <- function(state,TrueState,ObsState,Present,PCRtestsWeek,max_PCR_tests_per_week,min_days_btw_tests,sens_sx,spec_sx,HxSx,sx_pos_PCR_test_compliance,PCRtests,Tested,DayTested,spec,DaysSinceInfctsnss,sens,max_days_PCR_pos,DayTrueState,DaysPCRpos,WaitingTime,DayObsState,HxPCR,PCRpos,t,PCRpos_removed){
   # idx <- ((TrueState==state) & (ObsState==1) & Present & (PCRtestsWeek<max_PCR_tests_per_week))
   idx <- ((TrueState==state) & (ObsState==1) & Present & (t-DayTested>=min_days_btw_tests | is.na(DayTested)))
   if (any(idx)){
@@ -215,27 +247,27 @@ sx_screening_update <- function(state,TrueState,ObsState,Present,PCRtestsWeek,ma
     idx_pos_tested <- idx_pos[runif(length(idx_pos))<sx_pos_PCR_test_compliance]
     PCRtests[idx_pos_tested] <- PCRtests[idx_pos_tested] + 1 # increment counter for total number of PCR tests
     PCRtestsWeek[idx_pos_tested] <- PCRtestsWeek[idx_pos_tested] + 1 # increment counter for number of PCR tests this week
-    list[Tested,DayTested,ObsState,DayObsState,HxPCR,PCRpos,PCRpos_removed] <- PCR_testing_update(Tested,DayTested,idx_pos_tested,state,spec,DaysSinceInfctsnss,fit,fit_extrap,max_days_PCR_pos,DayTrueState,DaysPCRpos,WaitingTime,ObsState,DayObsState,HxPCR,PCRpos,t,PCRpos_removed)
+    list[Tested,DayTested,ObsState,DayObsState,HxPCR,PCRpos,PCRpos_removed] <- PCR_testing_update(Tested,DayTested,idx_pos_tested,state,spec,DaysSinceInfctsnss,sens,max_days_PCR_pos,DayTrueState,DaysPCRpos,WaitingTime,ObsState,DayObsState,HxPCR,PCRpos,t,PCRpos_removed)
   }
   return(list(HxSx=HxSx,Tested=Tested,DayTested=DayTested,PCRtests=PCRtests,PCRtestsWeek=PCRtestsWeek,ObsState=ObsState,DayObsState=DayObsState,HxPCR=HxPCR,PCRpos=PCRpos,PCRpos_removed=PCRpos_removed))
 }
 
 # Function for updates resulting from PCR testing once upon entry
-PCR_testing_on_entry_update <- function(state,TrueState,Number,Numbers_add,entry_PCR_test_compliance,PCRtests,Tested,DayTested,spec,DaysSinceInfctsnss,fit,fit_extrap,max_days_PCR_pos,DayTrueState,DaysPCRpos,WaitingTime,ObsState,DayObsState,HxPCR,PCRpos,t,PCRpos_removed){
+PCR_testing_on_entry_update <- function(state,TrueState,Number,Numbers_add,entry_PCR_test_compliance,PCRtests,Tested,DayTested,spec,DaysSinceInfctsnss,sens,max_days_PCR_pos,DayTrueState,DaysPCRpos,WaitingTime,ObsState,DayObsState,HxPCR,PCRpos,t,PCRpos_removed){
   idx <- which((TrueState==state) & (Number %in% Numbers_add) & runif(length(TrueState))<entry_PCR_test_compliance) # test anybody entering shelter regardless of whether they've been tested previously and what the result was
   PCRtests[idx] <- PCRtests[idx] + 1
-  list[Tested,DayTested,ObsState,DayObsState,HxPCR,PCRpos,PCRpos_removed] <- PCR_testing_update(Tested,DayTested,idx,state,spec,DaysSinceInfctsnss,fit,fit_extrap,max_days_PCR_pos,DayTrueState,DaysPCRpos,WaitingTime,ObsState,DayObsState,HxPCR,PCRpos,t,PCRpos_removed)
+  list[Tested,DayTested,ObsState,DayObsState,HxPCR,PCRpos,PCRpos_removed] <- PCR_testing_update(Tested,DayTested,idx,state,spec,DaysSinceInfctsnss,sens,max_days_PCR_pos,DayTrueState,DaysPCRpos,WaitingTime,ObsState,DayObsState,HxPCR,PCRpos,t,PCRpos_removed)
   
   return(list(PCRtests=PCRtests,Tested=Tested,DayTested=DayTested,ObsState=ObsState,DayObsState=DayObsState,HxPCR=HxPCR,PCRpos=PCRpos,PCRpos_removed=PCRpos_removed))
 }
 
 # Function for updates resulting from routine PCR testing
-routine_PCR_testing_update <- function(state,TrueState,ObsState,Present,PCRtestsWeek,max_PCR_tests_per_week,min_days_btw_tests,routine_PCR_test_compliance,PCRtests,Tested,DayTested,spec,DaysSinceInfctsnss,fit,fit_extrap,max_days_PCR_pos,DayTrueState,DaysPCRpos,WaitingTime,DayObsState,HxPCR,PCRpos,t,PCRpos_removed){
+routine_PCR_testing_update <- function(state,TrueState,ObsState,Present,PCRtestsWeek,max_PCR_tests_per_week,min_days_btw_tests,routine_PCR_test_compliance,PCRtests,Tested,DayTested,spec,DaysSinceInfctsnss,sens,max_days_PCR_pos,DayTrueState,DaysPCRpos,WaitingTime,DayObsState,HxPCR,PCRpos,t,PCRpos_removed){
   # idx <- which(TrueState==state & ObsState==1 & Present & PCRtestsWeek<max_PCR_tests_per_week & runif(length(TrueState))<routine_PCR_test_compliance) # individuals present in the shelter not known to be infected who have had less than max_PCR_tests_per_week PCR tests in the current week and comply
   idx <- which(TrueState==state & ObsState==1 & Present & (t-DayTested>=min_days_btw_tests | is.na(DayTested)) & runif(length(TrueState))<routine_PCR_test_compliance) # individuals present in the shelter not known to be infected who have not been tested in last min_days_btw_tests days and comply
   PCRtests[idx] <- PCRtests[idx] + 1
   PCRtestsWeek[idx] <- PCRtestsWeek[idx] + 1
-  list[Tested,DayTested,ObsState,DayObsState,HxPCR,PCRpos,PCRpos_removed] <- PCR_testing_update(Tested,DayTested,idx,state,spec,DaysSinceInfctsnss,fit,fit_extrap,max_days_PCR_pos,DayTrueState,DaysPCRpos,WaitingTime,ObsState,DayObsState,HxPCR,PCRpos,t,PCRpos_removed)
+  list[Tested,DayTested,ObsState,DayObsState,HxPCR,PCRpos,PCRpos_removed] <- PCR_testing_update(Tested,DayTested,idx,state,spec,DaysSinceInfctsnss,sens,max_days_PCR_pos,DayTrueState,DaysPCRpos,WaitingTime,ObsState,DayObsState,HxPCR,PCRpos,t,PCRpos_removed)
   return(list(PCRtests=PCRtests,PCRtestsWeek=PCRtestsWeek,Tested=Tested,DayTested=DayTested,ObsState=ObsState,DayObsState=DayObsState,HxPCR=HxPCR,PCRpos=PCRpos,PCRpos_removed=PCRpos_removed))
 }
 

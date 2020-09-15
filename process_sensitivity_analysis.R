@@ -1,4 +1,4 @@
-process_sensitivity_analysis <- function(fnm1,fnm2,run_nm,dir){
+process_sensitivity_analysis <- function(fnm1,run_nm,dir){
   load(fnm1)
   range_by_intvntn <- t(apply(prob_outbreak_averted,2,range))
   colnames(range_by_intvntn) <- c("min","max")

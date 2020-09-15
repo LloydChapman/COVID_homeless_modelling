@@ -52,7 +52,7 @@ plot_interventions_by_strategy <- function(nsims,T_sim,run_nms,epsilons,interven
   }
 }
 
-plot_epsilon_SA <- function(fnm,run_nms,homelessRR,R0lbls){
+plot_epsilon_SA <- function(fnm,run_nms,homeless_RR,R0lbls){
   load(fnm)
   
   intvntn_nms <- c("Symptom screening","Routine PCR testing","Universal mask wearing","Relocation of high-risk individuals","Routine PCR testing of staff only","Combination strategy")

@@ -1,7 +1,7 @@
 run_simulations <- function(R0,w,Present,p_s,Risk,h,alpha,mu_p,mu_sx,nsims,N_res,N_staff,N_pop,
                             T_sim,epsilon,r_E,p_E,r_p,p_p,r_sx,p_sx,p_h,p_ICU,p_d,mean_days_PCR_pos,
-                            min_days_PCR_pos,max_days_PCR_pos,discrnorm,hospitalisation,fit,
-                            fit_extrap,spec,testing_days,interventions,max_PCR_tests_per_week,
+                            min_days_PCR_pos,max_days_PCR_pos,discrnorm,hospitalisation,sens,
+                            spec,testing_days,interventions,max_PCR_tests_per_week,
                             min_days_btw_tests,entry_PCR_test_compliance,routine_PCR_test_compliance,
                             sx_pos_PCR_test_compliance,mask_compliance,mask_eff,sens_sx,spec_sx,Number,
                             Resident,Age,res_present0,E0,run_nm,dir=""){
@@ -63,7 +63,7 @@ run_simulations <- function(R0,w,Present,p_s,Risk,h,alpha,mu_p,mu_sx,nsims,N_res
       set.seed(i)
       res <- COVID_homeless_intervention_model(N_res,N_staff,N_pop,T_sim,w,beta,epsilon,r_E,p_E,p_s,h,r_p,p_p,
                                                alpha,r_sx,p_sx,p_h,p_ICU,p_d,mean_days_PCR_pos,min_days_PCR_pos,
-                                               max_days_PCR_pos,discrnorm,hospitalisation,fit,fit_extrap,spec,
+                                               max_days_PCR_pos,discrnorm,hospitalisation,sens,spec,
                                                testing_days,interventions[[j]],max_PCR_tests_per_week,
                                                min_days_btw_tests,entry_PCR_test_compliance,
                                                routine_PCR_test_compliance,sx_pos_PCR_test_compliance,

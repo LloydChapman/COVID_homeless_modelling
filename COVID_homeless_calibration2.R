@@ -16,7 +16,7 @@
 
 COVID_homeless_model<-function(N_res,N_staff,N_pop,T_sim,w,beta,epsilon,r_E,p_E,p_s,h,r_p,p_p,alpha,r_sx,p_sx,
                                p_h,p_ICU,p_d,mean_days_PCR_pos,min_days_PCR_pos,max_days_PCR_pos,discrnorm,
-                               hospitalisation,fit,fit_extrap,spec,testing_days,N_tested,sx_testing_days,N_sx_tested,
+                               hospitalisation,sens,spec,testing_days,N_tested,sx_testing_days,N_sx_tested,
                                CCMS_data,Number,Resident,Present,Risk,Age,e0ind,TrueState,DayTrueState,
                                WaitingTime,DaysSinceInfctn,DaysSinceInfctsnss,DaysPCRpos,shelter){
 
@@ -177,7 +177,7 @@ COVID_homeless_model<-function(N_res,N_staff,N_pop,T_sim,w,beta,epsilon,r_E,p_E,
         # print(length(i_s_sx1))
         # print(DayTrueState[i_s_sx1])
         # print(sens(DaysSinceInfctsnss[i_s_sx1],fit,fit_extrap,max_days_PCR_pos))
-        list[Tested,DayTested,ObsState,DayObsState,HxPCR,PCRpos_sx_testing,sx_indvdls_removed] <- PCR_testing_update(Tested,DayTested,sx_indvdls_tested,6,spec[6],DaysSinceInfctsnss,fit,fit_extrap,max_days_PCR_pos,DayTrueState,DaysPCRpos,WaitingTime,ObsState,DayObsState,HxPCR,PCRpos_sx_testing,which(sx_testing_days==t),sx_indvdls_removed)
+        list[Tested,DayTested,ObsState,DayObsState,HxPCR,PCRpos_sx_testing,sx_indvdls_removed] <- PCR_testing_update(Tested,DayTested,sx_indvdls_tested,6,spec[6],DaysSinceInfctsnss,sens,max_days_PCR_pos,DayTrueState,DaysPCRpos,WaitingTime,ObsState,DayObsState,HxPCR,PCRpos_sx_testing,which(sx_testing_days==t),sx_indvdls_removed)
       }
       # print(PCRpos_sx_testing)
       # print(sx_indvdls_removed)
@@ -214,7 +214,7 @@ COVID_homeless_model<-function(N_res,N_staff,N_pop,T_sim,w,beta,epsilon,r_E,p_E,
         indvdls_tested <- resample(idx1,min(N_tested[testing_days==t],length(idx1))) #,prob=w[idx1] # randomly pick untested individuals to test, residents and staff have same chance of being tested
         for (i in 1:7){
           idx2 <- which((TrueState==i) & (ObsState==1) & (Number %in% indvdls_tested))
-          list[Tested,DayTested,ObsState,DayObsState,HxPCR,PCRpos,PCRpos_removed] <- PCR_testing_update(Tested,DayTested,idx2,i,spec[i],DaysSinceInfctsnss,fit,fit_extrap,max_days_PCR_pos,DayTrueState,DaysPCRpos,WaitingTime,ObsState,DayObsState,HxPCR,PCRpos,which(testing_days==t),PCRpos_removed)
+          list[Tested,DayTested,ObsState,DayObsState,HxPCR,PCRpos,PCRpos_removed] <- PCR_testing_update(Tested,DayTested,idx2,i,spec[i],DaysSinceInfctsnss,sens,max_days_PCR_pos,DayTrueState,DaysPCRpos,WaitingTime,ObsState,DayObsState,HxPCR,PCRpos,which(testing_days==t),PCRpos_removed)
         }        
       }
     }

@@ -17,7 +17,7 @@ source("process_sensitivity_analysis.R")
 source("plot_sensitivity_analysis.R")
 
 # Register doParallel backend with 10 workers
-registerDoParallel(10)
+registerDoParallel(detectCores()-1)
 
 # Number of simulations per intervention strategy
 nsims <- 1000
@@ -33,7 +33,7 @@ nsims <- 1000
 interventions <- list(NULL,1,c(1,3),c(1,5),c(1,6),c(1,7),c(1,3,5,6))
 
 # Load CCMS data from MSC South outbreak
-CCMS_data <- read.csv("../Data/CCMS_data.csv",stringsAsFactors = F)
+CCMS_data <- read.csv("data/CCMS_data.csv",stringsAsFactors = F)
 names(CCMS_data)[1] <- "Date"
 CCMS_data$Date <- as.Date(CCMS_data$Date,format = "%d-%b")
 # Remove empty rows from after Apr 10
@@ -51,7 +51,7 @@ underreporting <- 4
 homeless_RR <- 2
 
 # Load SF data from SF DPH [https://data.sfgov.org/COVID-19/COVID-19-Cases-Summarized-by-Date-Transmission-and/tvq9-ec9w]
-SF_data <- read.csv("../Data/COVID-19_Cases_Summarized_by_Date__Transmission_and_Case_Disposition_2020_07_24.csv",stringsAsFactors = F)
+SF_data <- read.csv("data/COVID-19_Cases_Summarized_by_Date__Transmission_and_Case_Disposition_2020_07_24.csv",stringsAsFactors = F)
 # Remove deaths
 SF_data <- SF_data[!(SF_data$Case.Disposition=="Death"),]
 names(SF_data)[names(SF_data)=="Specimen.Collection.Date"] <- "Date"
@@ -61,13 +61,13 @@ SF_case_data <- aggregate(Cases ~ Date,SF_data,sum)
 epsilon_SF <- calc_epsilon(SF_case_data,start_date,end_date,881549,underreporting,homeless_RR)
 
 # Load Boston case data obtained from https://dashboard.cityofboston.gov/t/Guest_Access_Enabled/views/COVID-19/Dashboard1?:showAppBanner=false&:display_count=n&:showVizHome=n&:origin=viz_share_link&:isGuestRedirectFromVizportal=y&:embed=y
-Boston_data <- read.delim("../Data/Boston_Cases_over_time_data.csv",sep = "\t",stringsAsFactors = F, fileEncoding = "UTF-16")
+Boston_data <- read.delim("data/Boston_Cases_over_time_data.csv",sep = "\t",stringsAsFactors = F, fileEncoding = "UTF-16")
 Boston_case_data <- data.frame(Date = as.Date(Boston_data$Day.of.Timestamp,format = "%B %d, %Y"))
 Boston_case_data$Cases <- c(1,diff(Boston_data$Cases..Total.Positive,lag = 1))
 epsilon_Boston <- calc_epsilon(Boston_case_data,start_date,end_date,692600,underreporting,homeless_RR)
 
 # Load Seattle case data
-Seattle_case_data <- read.csv("../Data/Seattle_cases.csv",stringsAsFactors = F)
+Seattle_case_data <- read.csv("data/Seattle_cases.csv",stringsAsFactors = F)
 Seattle_case_data$Date <- as.Date(Seattle_case_data$Date,format = "%m/%d/%y")
 epsilon_Seattle <- calc_epsilon(Seattle_case_data,start_date,end_date,753675,underreporting,homeless_RR)
 
@@ -89,9 +89,6 @@ epsilons <- c(0,min(tmp),mean(tmp),max(tmp))
 
 # Flag for whether to count hospitalisations and deaths
 hospitalisation <- T
-
-# Set PCR test parameters
-source("set_PCR_test_pars.R")
 
 # PCR testing frequency
 testing_freq <- 2 # testing events per week
@@ -201,16 +198,14 @@ for (j in 1:length(R0s)){
   prob_outbreak_averted <-
     foreach(i=1:nrow(pars),.combine = 'rbind') %dopar% {
       run_nm <- paste0(run_nms[j],"_SA",i)
-      y <- rep(pars[i,"sens"],length(x)) # fixed PCR test sensitivity
-      fit <- lm(y ~ 1)
-      # Linearly extrapolate sensitivity to maximum number of days of detectable viral load
-      fit_extrap <- approxExtrap(x,y,(x[length(x)]+1):max_days_PCR_pos)
-      sens_sx <- c(rep(NA,5),pars[i,"sens_sx"],NA) # sensitivities for states 1 to 7
-      spec_sx <- c(rep(pars[i,"spec_sx"],5),NA,pars[i,"spec_sx"]) # specificities for states 1 to 7
+      sens <- sensitivity("constant",max_days_PCR_pos,T_sim,const_sens = pars[i,"sens"]) # fixed PCR test sensitivity
+      spec <- c(rep(pars[i,"spec"],2),rep(NA,5))
+      sens_sx <- c(rep(NA,5),pars[i,"sens_sx"],NA) # symptom screening sensitivities for states 1 to 7
+      spec_sx <- c(rep(pars[i,"spec_sx"],5),NA,pars[i,"spec_sx"]) # symptom screening specificities for states 1 to 7
       run_simulations(R0s[j],w,Present,p_s,Risk,pars[i,"h"],pars[i,"alpha"],mu_p,mu_sx,nsims,N_res,N_staff,N_pop,
                                                              T_sim,epsilons[2],r_E,p_E,r_p,p_p,r_sx,p_sx,p_h,p_ICU,p_d,mean_days_PCR_pos,
-                                                             min_days_PCR_pos,max_days_PCR_pos,discrnorm,hospitalisation,fit,
-                                                             fit_extrap,pars[,"spec"],testing_days,interventions,max_PCR_tests_per_week,
+                                                             min_days_PCR_pos,max_days_PCR_pos,discrnorm,hospitalisation,sens,
+                                                             spec,testing_days,interventions,max_PCR_tests_per_week,
                                                              min_days_btw_tests,entry_PCR_test_compliance,pars[i,"routine_PCR_test_compliance"],
                                                              pars[i,"sx_pos_PCR_test_compliance"],pars[i,"mask_compliance"],pars[i,"mask_eff"],sens_sx,spec_sx,Number,
                                                              Resident,Age,res_present0,E0,run_nm,dir)

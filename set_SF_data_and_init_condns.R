@@ -1,5 +1,5 @@
 # Load CCMS data from MSC South outbreak
-CCMS_data <- read.csv("../Data/CCMS_data.csv",stringsAsFactors = F)
+CCMS_data <- read.csv("data/CCMS_data.csv",stringsAsFactors = F)
 names(CCMS_data)[1] <- "Date"
 CCMS_data$Date <- as.Date(CCMS_data$Date,format = "%d-%b")
 # Remove empty rows from after Apr 10
@@ -12,54 +12,23 @@ CCMS_data[is.na(CCMS_data)] <- 0
 # start_date <- min(CCMS_data$Date)
 start_date <- as.Date("3/28/2020",format = "%m/%d/%Y")
 end_date <- max(CCMS_data$Date)
-mass_testing_start_date <- as.Date("4/8/2020", format = "%m/%d/%Y")
-mass_testing_end_date <- as.Date("4/9/2020", format = "%m/%d/%Y")
-mass_testing_start_day <- as.integer(mass_testing_start_date-start_date+1)
-mass_testing_end_day <- as.integer(mass_testing_end_date-start_date+1)
 
 # Date first case identified
 date_first_case <- as.Date("4/5/2020",format = "%m/%d/%Y")
 
 # Load SF data from SF DPH [https://data.sfgov.org/COVID-19/COVID-19-Cases-Summarized-by-Date-Transmission-and/tvq9-ec9w]
-SF_data <- read.csv("../Data/COVID-19_Cases_Summarized_by_Date__Transmission_and_Case_Disposition.csv",stringsAsFactors = F)
+SF_data <- read.csv("data/COVID-19_Cases_Summarized_by_Date__Transmission_and_Case_Disposition.csv",stringsAsFactors = F)
 # Remove deaths
 SF_data <- SF_data[!(SF_data$Case.Disposition=="Death"),]
-SF_case_data <- aggregate(Case.Count ~ Date,SF_data,sum)
+names(SF_data)[names(SF_data)=="Specimen.Collection.Date"] <- "Date"
+names(SF_data)[names(SF_data)=="Case.Count"] <- "Cases"
+SF_data$Date <- as.Date(SF_data$Date) 
+SF_case_data <- aggregate(Cases ~ Date,SF_data,sum)
 
-# Load DPH data
-linelist <- read.csv("../Data/LineList2.csv",stringsAsFactors = F)
-PCR_data <- read.csv("../Data/LabData2.csv",stringsAsFactors = F)
-
-datecols <- grep("Date",names(linelist))
-for (i in 1:length(datecols)){
-  linelist[,datecols[i]] <- as.Date(linelist[,datecols[i]],format = "%m/%d/%y")
-}
-linelist$Age[linelist$Age=="unknown"]<-""
-linelist$Age <- as.integer(linelist$Age)
-
-# Aggregate PCR testing data and symptomatic case data
-idx <- (linelist$TestingDate>=start_date & linelist$TestingDate<=end_date & (linelist$Symptomatic=="" | linelist$TestingDate>=mass_testing_start_date))
-agg_PCR_data <- aggregate(ID ~ TestingDate, linelist[idx,], length)
-names(agg_PCR_data)[2] <- "Tests"
-sum(agg_PCR_data$Tests)
-tmp <- aggregate(ID ~ TestingDate, linelist[linelist$Result=="positive" & idx,], length)
-names(tmp)[2] <- "PositiveTests"
-agg_PCR_data <- merge(agg_PCR_data,tmp,all.x = T)
-agg_PCR_data$PositiveTests[is.na(agg_PCR_data$PositiveTests)] <- 0
-
-idx <- (linelist$TestingDate>=start_date & linelist$Symptomatic %in% c("Y","Y_IQ") & linelist$TestingDate<mass_testing_start_date)
-agg_PCR_sx_testing_data <- aggregate(ID ~ TestingDate, linelist[idx,], length)
-names(agg_PCR_sx_testing_data)[2] <- "Tests"
-tmp <- aggregate(ID ~ TestingDate, linelist[linelist$Result=="positive" & idx,], length)
-names(tmp)[2] <- "PositiveTests"
-agg_PCR_sx_testing_data <- merge(agg_PCR_sx_testing_data,tmp,all.x = T)
-agg_PCR_sx_testing_data$PositiveTests[is.na(agg_PCR_sx_testing_data$PositiveTests)] <- 0
-
-# Count symptomatic individuals (exclude those with negative PCR results who reported having had symptoms at I & Q sites)
-tmp <- aggregate(ID ~ SymptomOnsetDate, linelist[!(linelist$Symptomatic=="Y_IQ" & linelist$Result=="negative"),], length)
-names(tmp)[2] <- "Cases"
-case_data <- data.frame(date = seq.Date(start_date,end_date,1),Cases=rep(0,as.integer(end_date-start_date+1)))
-case_data$Cases[case_data$date %in% tmp$SymptomOnsetDate] <- tmp$Cases[tmp$SymptomOnsetDate %in% case_data$date]
+# Load aggregate PCR testing data and symptomatic case data from SFDPH
+agg_PCR_data <- read.csv("data/SF_shelter_PCR_data.csv",colClasses = c("Date","integer","integer"))
+agg_PCR_sx_testing_data <- read.csv("data/SF_shelter_PCR_data_sx.csv",colClasses = c("Date","integer","integer"))
+case_data <- read.csv("data/SF_shelter_case_data.csv",colClasses = c("Date","integer"))
 
 # Set number of residents and staff in shelter and duration of simulation
 N_res <- 350 # Set such that ~255 unique individuals are present in shelter at some point between 3/29 and 4/10  # CCMS_data$Total_Census[1]
@@ -78,15 +47,14 @@ reporting_delay <- 7 # days from start of infectiousness = 2 days presymptomatic
 trnsmssn_window <- 21 # days
 underreporting <- 10 # under-reporting ratio for confirmed cases vs infections
 homeless_RR <- 2 # relative-risk of infection for homeless individuals
-mean_daily_cases <- mean(SF_case_data$Case.Count[SF_case_data$Date>=end_date-trnsmssn_window+reporting_delay & SF_case_data$Date<=end_date+reporting_delay]) # mean of confirmed cases for period of interest
-mean_daily_inc <- mean_daily_cases/881549 # population estimate from US Census Bureau [https://www.census.gov/quickfacts/sanfranciscocountycalifornia]
-epsilon <- mean_daily_inc*underreporting*homeless_RR # adjusted transmission rate outside shelter
+epsilon <- calc_epsilon(SF_case_data,end_date-trnsmssn_window+reporting_delay,end_date+reporting_delay,881549,underreporting,homeless_RR) # population estimate from US Census Bureau [https://www.census.gov/quickfacts/sanfranciscocountycalifornia]
 
 # Flag for whether to count hospitalisations and deaths
 hospitalisation <- F # false as data not available for MSC South outbreak
 
 # Set PCR test parameters
-source("set_PCR_test_pars.R")
+sens <- sensitivity("constant",max_days_PCR_pos,const_sens = 0.75) # sensitivity as a function of days since start of infectiousness
+spec <- c(1,1,NA,NA,NA,NA,NA) # specificities for states 1 to 7
 
 # PCR testing frequency
 # testing_dates <- as.Date(c("4/8/2020","4/9/2020"),format="%m/%d/%Y") # testing dates
@@ -120,8 +88,8 @@ Hi_Risk_Both_Age_Dx_present0 <- sample(setdiff(res_present0,c(Hi_Risk_60_only_pr
 Hi_Risk_Both_Age_Dx_absent0 <- sample(setdiff(res_absent0,c(Hi_Risk_60_only_absent0,Hi_Risk_Dx_only_absent0)),v$Hi_Risk_Both_Age_Dx-CCMS_data$Hi_Risk_Both_Age_Dx[1])
 Risk[c(Hi_Risk_Both_Age_Dx_present0,Hi_Risk_Both_Age_Dx_absent0)] <- 4
 Age <- rep(NA,N_pop)
-Age[Risk %in% c(1,3)] <- sample(x=seq(min(linelist$Age,na.rm = T),59), size=sum(Risk %in% c(1,3)), replace=TRUE) # [ ] - UPDATE to true age distribution?
-Age[Risk %in% c(2,4)] <- sample(x=seq(60,max(linelist$Age,na.rm = T)), size=sum(Risk %in% c(2,4)), replace=TRUE) # [ ] - UPDATE to true age distribution?
+Age[Risk %in% c(1,3)] <- sample(x=seq(20,59), size=sum(Risk %in% c(1,3)), replace=TRUE) # [ ] - UPDATE to true age distribution?
+Age[Risk %in% c(2,4)] <- sample(x=seq(60,77), size=sum(Risk %in% c(2,4)), replace=TRUE) # [ ] - UPDATE to true age distribution?
 
 # Observed data
 D_S <- agg_PCR_sx_testing_data$PositiveTests

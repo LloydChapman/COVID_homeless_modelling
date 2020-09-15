@@ -1,10 +1,10 @@
-# Seattle data from MMWR paper and report
+# Seattle data from Tobolowsky MMWR 2020 and Mosites MMWR 2020
 
 # Load CCMS data if available
 CCMS_data <- NULL
 
 # SF CCMS data for proportions in different risk groups
-SF_CCMS_data <- read.csv("../Data/CCMS_data.csv",stringsAsFactors = F)
+SF_CCMS_data <- read.csv("data/CCMS_data.csv",stringsAsFactors = F)
 names(SF_CCMS_data)[1] <- "Date"
 SF_CCMS_data$Date <- as.Date(SF_CCMS_data$Date,format = "%d-%b")
 # Remove empty rows from after Apr 10
@@ -18,8 +18,11 @@ SF_CCMS_data[is.na(SF_CCMS_data)] <- 0
 start_date <- as.Date("4/1/2020",format = "%m/%d/%Y")
 end_date <- as.Date("4/8/2020",format = "%m/%d/%Y")
 
+# Date first case identified
+date_first_case <- as.Date("3/30/2020",format = "%m/%d/%Y")
+
 # Load Seattle case data obtained from https://www.kingcounty.gov/depts/health/covid-19/data/daily-summary.aspx
-Seattle_case_data <- read.csv("../Data/Seattle_cases.csv",stringsAsFactors = F)
+Seattle_case_data <- read.csv("data/Seattle_cases.csv",stringsAsFactors = F)
 Seattle_case_data$Date <- as.Date(Seattle_case_data$Date,format = "%m/%d/%y")
 
 # Set number of residents and staff in shelter and duration of simulation
@@ -28,7 +31,7 @@ N_staff <- 27
 N_pop <- N_res + N_staff
 
 # Set weights for presence of residents and staff in shelter
-w <- c(rep(1,N_res),rep(1/2,N_staff))
+w <- rep(1,N_pop) #c(rep(1,N_res),rep(1/2,N_staff))
 
 # Set natural history parameters
 source("set_nat_hist_pars.R")
@@ -38,19 +41,18 @@ reporting_delay <- 7 # days from start of infectiousness = 2 days presymptomatic
 trnsmssn_window <- 21 # days
 underreporting <- 10 # under-reporting ratio for confirmed cases vs infections
 homeless_RR <- 2 # relative-risk of infection for homeless individuals
-mean_daily_cases <- mean(Seattle_case_data$Cases[Seattle_case_data$Date>=end_date-trnsmssn_window+reporting_delay & Seattle_case_data$Date<=end_date+reporting_delay]) # mean of confirmed cases for period of interest
-mean_daily_inc <- mean_daily_cases/753675 # population estimate from US Census Bureau [https://www.census.gov/quickfacts/fact/table/seattlecitywashington/PST045219]
-epsilon <- mean_daily_inc*underreporting*homeless_RR # adjusted transmission rate outside shelter
+epsilon <- calc_epsilon(Seattle_case_data,end_date-trnsmssn_window+reporting_delay,end_date+reporting_delay,753675,underreporting,homeless_RR) # population estimate from US Census Bureau [https://www.census.gov/quickfacts/fact/table/seattlecitywashington/PST045219]
 
 # Flag for whether to count hospitalisations and deaths
 hospitalisation <- F # false as data not available
 
 # Set PCR test parameters
-source("set_PCR_test_pars.R")
+sens <- sensitivity("constant",max_days_PCR_pos,const_sens = 0.75) # sensitivity as a function of days since start of infectiousness
+spec <- c(1,1,NA,NA,NA,NA,NA) # specificities for states 1 to 7
 
 # PCR testing frequency
 testing_dates <- as.Date(c("4/1/2020","4/8/2020"),format="%m/%d/%Y") # testing dates
-N_tested <- c(154,103) # numbers tested during mass testing
+N_tested <- c(154 + 27,96 + 15) # numbers of residents and staff tested during mass testing (excludes individuals tested on 4/8 from shelter A)
 sx_testing_dates <- as.Date(integer(), origin = "1970-01-01")
 N_sx_tested <- integer() # number of symptomatic individuals tested on each symptomatic testing day
 
@@ -63,23 +65,22 @@ res_absent0 <- setdiff(1:N_res,res_present0)
 staff_present0 <- (N_res+1):N_pop
 Present <- ((1:N_pop) %in% c(res_present0,staff_present0))
 Risk <- rep(1,N_pop) # N.B. assumes all staff are low risk and under-60
-v <- round(N_res*SF_CCMS_data[1,2:ncol(SF_CCMS_data)]/SF_CCMS_data[1,2],0)
-Hi_Risk_60_only_present0 <- sample(res_present0,round(length(res_present0)/4))
-Hi_Risk_60_only_absent0 <- sample(res_absent0,round(length(res_absent0)/4))
-Risk[c(Hi_Risk_60_only_present0,Hi_Risk_60_only_absent0)] <- 2
-Hi_Risk_Dx_only_present0 <- sample(setdiff(res_present0,Hi_Risk_60_only_present0),round(length(res_present0)/4))
-Hi_Risk_Dx_only_absent0 <- sample(setdiff(res_absent0,Hi_Risk_60_only_absent0),round(length(res_absent0)/4))
-Risk[c(Hi_Risk_Dx_only_present0,Hi_Risk_Dx_only_absent0)] <- 3
-Hi_Risk_Both_Age_Dx_present0 <- sample(setdiff(res_present0,c(Hi_Risk_60_only_present0,Hi_Risk_Dx_only_present0)),length(res_present0)-3*round(length(res_present0)/4))
-Hi_Risk_Both_Age_Dx_absent0 <- sample(setdiff(res_absent0,c(Hi_Risk_60_only_absent0,Hi_Risk_Dx_only_absent0)),length(res_absent0)-3*round(length(res_absent0)/4))
-Risk[c(Hi_Risk_Both_Age_Dx_present0,Hi_Risk_Both_Age_Dx_absent0)] <- 4
+# Assume 1/2 of residents are under 60 and 1/2 are 60+ as all residents are 50+
+N_under60 <- floor(N_res/2) 
+N_60plus <- ceiling(N_res/2)
+Hi_Risk_60_only <- sample(res_present0,N_60plus*SF_CCMS_data$Hi_Risk_60_only[1]/(SF_CCMS_data$Hi_Risk_60_only[1]+SF_CCMS_data$Hi_Risk_Both_Age_Dx[1]))
+Risk[Hi_Risk_60_only] <- 2
+Hi_Risk_Dx_only <- sample(setdiff(res_present0,Hi_Risk_60_only),round(N_under60*SF_CCMS_data$Hi_Risk_Dx_only[1]/(SF_CCMS_data$Hi_Risk_Dx_only[1]+SF_CCMS_data$Total_Low_Risk[1])))
+Risk[Hi_Risk_Dx_only] <- 3
+Hi_Risk_Both_Age_Dx <- sample(setdiff(res_present0,c(Hi_Risk_60_only,Hi_Risk_Dx_only)),round(N_60plus*SF_CCMS_data$Hi_Risk_Both_Age_Dx[1]/(SF_CCMS_data$Hi_Risk_60_only[1]+SF_CCMS_data$Hi_Risk_Both_Age_Dx[1])))
+Risk[Hi_Risk_Both_Age_Dx] <- 4
 Age <- rep(NA,N_pop)
 Age[Risk %in% c(1,3)] <- sample(x=seq(50,59), size=sum(Risk %in% c(1,3)), replace=TRUE) # [ ] - UPDATE to true age distribution?
 Age[Risk %in% c(2,4)] <- sample(x=seq(60,77), size=sum(Risk %in% c(2,4)), replace=TRUE) # [ ] - UPDATE to true age distribution?
 
 # Observed data
 D_S <- NULL
-D_T <- c(15,16) # number of positives during mass testing
+D_T <- c(15 + 4,14 + 2) # number of positives in residents and staff during mass testing
 D_C <- NULL # set to NULL if no data available on symptom onsets
 
 #  Lower and upper boundaries for priors for R0, E0 and T
