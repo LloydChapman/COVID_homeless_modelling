@@ -9,7 +9,6 @@ library(gsubfn)
 library(doParallel)
 library(abind)
 
-setwd("~/Dropbox/Homeless/Code")
 source("COVID_homeless_interventions.R")
 source("COVID_homeless_functions.R")
 source("run_simulations.R")

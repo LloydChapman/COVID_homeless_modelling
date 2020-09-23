@@ -9,7 +9,6 @@ library(Hmisc)
 library(gsubfn)
 library(gridExtra)
 
-setwd("~/Dropbox/Homeless/Code") 
 source("ABC_SMC.R")
 source("ABC_SMC_functions.R")
 source("set_data_and_init_condns.R")

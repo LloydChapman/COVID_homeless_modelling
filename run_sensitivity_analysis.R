@@ -9,14 +9,13 @@ library(gsubfn)
 library(doParallel)
 library(abind)
 
-setwd("~/Dropbox/Homeless/Code")
 source("COVID_homeless_interventions.R")
 source("COVID_homeless_functions.R")
 source("run_simulations.R")
 source("process_sensitivity_analysis.R")
 source("plot_sensitivity_analysis.R")
 
-# Register doParallel backend with 10 workers
+# Register doParallel backend with maximum no. workers - 1 
 registerDoParallel(detectCores()-1)
 
 # Number of simulations per intervention strategy
