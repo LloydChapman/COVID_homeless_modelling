@@ -248,7 +248,6 @@ calc_cum_infection_inc <- function(fnm,N_pop,probs){
     total_infections[i] <- sum(infections_list[[i]])
   }
   cum_inc <- total_infections/N_pop
-  hist(cum_inc)
   q_cum_inc <- quantile(cum_inc,probs = c(0.5,0.025,0.975)) 
   return(q_cum_inc)
 }
