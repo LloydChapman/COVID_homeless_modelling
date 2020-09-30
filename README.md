@@ -1,6 +1,6 @@
 # Comparison of interventions against COVID-19 outbreaks in homeless shelters
 
-This repository contains Approximate Bayesian Computation (ABC) code and simulation code for the analyses in 'Comparison of infection control strategies to reduce COVID-19 outbreaks in homeless shelters in the United States: a simulation study'. The code implements a discrete-time stochastic SEIR simulation model of COVID-19 transmission in a closed environment (here a homeless shelter) with importation of infection from the local community. The model is fitted to data on numbers of PCR-positive and negative individuals  from outbreaks in 5 homeless shelters in San Francisco, Boston and Seattle, and used to predict the impact of different intervention strategies on the probability of averting an outbreak over 30 days in a representative homeless shelter into which a single latently infected individual is introduced.
+This repository contains Approximate Bayesian Computation (ABC) code and simulation code for the analyses in 'Comparison of infection control strategies to reduce COVID-19 outbreaks in homeless shelters in the United States: a simulation study' [1]. The code implements a discrete-time stochastic SEIR simulation model of COVID-19 transmission in a closed environment (here a homeless shelter) with importation of infection from the local community. The model is fitted to data on numbers of PCR-positive and negative individuals  from outbreaks in 5 homeless shelters in San Francisco, Boston and Seattle, and used to predict the impact of different intervention strategies on the probability of averting an outbreak over 30 days in a representative homeless shelter into which a single latently infected individual is introduced.
 
 ## Prerequisites
 
@@ -88,11 +88,13 @@ This project is licensed under the GNU General Public License v3.0 - see the [LI
 
 ## Acknowledgments
 
-The ABC SMC code adapts the code for case study 2 in [1] available [here](https://github.com/amanda-minter/abc_R/tree/master/case_2) to enable fitting to both discrete and continuous parameters following the ABC model-selection algorithm described in [2,3].
+The ABC SMC code adapts the code for case study 2 in [2] available [here](https://github.com/amanda-minter/abc_R/tree/master/case_2) to enable fitting to both discrete and continuous parameters following the ABC model-selection algorithm described in [3,4].
 
 ## References
-1. Minter A, Retkute R. Approximate Bayesian Computation for infectious disease modelling. Epidemics. 2019;29:100368. doi:[10.1016/j.epidem.2019.100368](https://doi.org/10.1016/j.epidem.2019.100368)
+1. Chapman LAC, Kushel M, Cox SN, Scarborough A, Cawley C, Nguyen T, Rodriguez-Barraquer I, Greenhouse B, Imbert E, Lo NC. Comparison of infection control strategies to reduce COVID-19 outbreaks in homeless shelters in the United States: a simulation study. medRxiv. 2020. doi:[10.1101/2020.09.28.20203166v1](https://doi.org/10.1101/2020.09.28.20203166)
 
-2. Toni T, Welch D, Strelkowa N, Ipsen A, Stumpf MPH. Approximate Bayesian computation scheme for parameter inference and model selection in dynamical systems. J R Soc Interface. 2009;6(31):187–202. doi:[10.1098/rsif.2008.0172](https://royalsocietypublishing.org/doi/10.1098/rsif.2008.0172)
+2. Minter A, Retkute R. Approximate Bayesian Computation for infectious disease modelling. Epidemics. 2019;29:100368. doi:[10.1016/j.epidem.2019.100368](https://doi.org/10.1016/j.epidem.2019.100368)
 
-3. Toni T, Stumpf MPH. Simulation-based model selection for dynamical systems in systems and population biology. Bioinformatics. 2009;26(1):104–10. doi:[10.1093/bioinformatics/btp619](https://doi.org/10.1093/bioinformatics/btp619)
+3. Toni T, Welch D, Strelkowa N, Ipsen A, Stumpf MPH. Approximate Bayesian computation scheme for parameter inference and model selection in dynamical systems. J R Soc Interface. 2009;6(31):187–202. doi:[10.1098/rsif.2008.0172](https://royalsocietypublishing.org/doi/10.1098/rsif.2008.0172)
+
+4. Toni T, Stumpf MPH. Simulation-based model selection for dynamical systems in systems and population biology. Bioinformatics. 2009;26(1):104–10. doi:[10.1093/bioinformatics/btp619](https://doi.org/10.1093/bioinformatics/btp619)
