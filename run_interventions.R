@@ -34,7 +34,7 @@ interventions <- list(NULL,1,c(1,3),c(1,5),c(1,6),c(1,7),c(1,3,5,6))
 # Load CCMS data from MSC South outbreak
 CCMS_data <- read.csv("data/CCMS_data.csv",stringsAsFactors = F)
 names(CCMS_data)[1] <- "Date"
-CCMS_data$Date <- as.Date(CCMS_data$Date,format = "%d-%b")
+CCMS_data$Date <- as.Date(paste0(CCMS_data$Date,"-2020"),format = "%d-%b-%Y")
 # Remove empty rows from after Apr 10
 CCMS_data <- CCMS_data[CCMS_data$Date<=as.Date("04/10/2020",format="%m/%d/%Y"),]
 # Reformat names
@@ -89,32 +89,8 @@ epsilons <- c(0,min(tmp),mean(tmp),max(tmp))
 # Flag for whether to count hospitalisations and deaths
 hospitalisation <- T
 
-# Set PCR test parameters
-sens <- sensitivity("constant",max_days_PCR_pos,const_sens = 0.75) # sensitivity as a function of days since start of infectiousness
-spec <- c(1,1,NA,NA,NA,NA,NA) # specificities for states 1 to 7
-
-# PCR testing frequency
-testing_freq <- 2 # testing events per week
-testing_days <- floor(seq(1,T_sim,by = 7/testing_freq)) # testing twice per week on 1st and 4th day
-
 # Set intervention parameters
-max_PCR_tests_per_week <- 2 # maximum number of PCR tests per week
-min_days_btw_tests <- 3 # minimum number of days between PCR tests
-
-# PCR testing once upon entry
-entry_PCR_test_compliance <- 0.8 # 80% compliance with PCR testing on entry
-
-# Routine PCR testing
-routine_PCR_test_compliance <- 0.8 # 80% compliance with routine PCR testing
-sx_pos_PCR_test_compliance <- 0.8 # 80% compliance with PCR testing among those who screen symptom positive
-
-# Mask wearing
-mask_compliance <- 0.8 # 80% compliance with universal masking
-mask_eff <- 0.3 # 30% reduction in transmission from universal masking
-
-# Symptom screening sensitivity and specificity
-sens_sx <- c(NA,NA,NA,NA,NA,0.4,NA) # sensitivities for states 1 to 7
-spec_sx <- c(0.9,0.9,0.9,0.9,0.9,NA,0.9) # specificities for states 1 to 7
+source("set_intvntn_pars.R")
 
 # Initialise variables
 Number <- 1:N_pop
@@ -153,7 +129,7 @@ R0lbls <- c("(low-risk)","(Seattle)","(Boston)","(SF)")
 ttls <- c("No interventions","Symptom screening","Routine PCR testing","Universal mask wearing","Relocation of high-risk individuals","Routine PCR testing of staff only","Combination strategy")
 
 ## Run interventions with median R0's from calibration to different shelter outbreaks
-run_nms <- c("_lower_R0_5","_Seattle_A_R0_10","_Boston_R0_10","_SF_R0_10")
+run_nms <- c("_lower_R0_6","_Seattle_A_R0_11","_Boston_R0_11","_SF_R0_11")
 for (i in 1:length(epsilons)){
   for (j in 1:length(R0s)){
     run_nm <- paste0(run_nms[j],"_epsilon",i-1)
@@ -162,7 +138,7 @@ for (i in 1:length(epsilons)){
                     min_days_PCR_pos,max_days_PCR_pos,discrnorm,hospitalisation,sens,
                     spec,testing_days,interventions,max_PCR_tests_per_week,
                     min_days_btw_tests,entry_PCR_test_compliance,routine_PCR_test_compliance,
-                    sx_pos_PCR_test_compliance,mask_compliance,mask_eff,sens_sx,spec_sx,Number,
+                    sx_pos_PCR_test_compliance,mask_compliance,mask_eff_susc,mask_eff_inf,sens_sx,spec_sx,Number,
                     Resident,Age,res_present0,E0,run_nm)
     process_interventions(paste0("intvntn_sim_output",run_nm,".RData"),run_nm,T_sim)
     plot_interventions(paste0("intvntn_sim_output",run_nm,".RData"),run_nm,ttls)
@@ -178,45 +154,47 @@ plot_interventions_by_strategy(nsims,T_sim,run_nms,epsilons,interventions,R0s,R0
 # Run interventions for a range of background incidences for each of the R0 estimates to find relationship
 # between background incidence and probability of averting an outbreak
 epsilons1 <- seq(0,max(tmp),length.out = 10)
+run_nm1 <- "_2"
 
 acomb <- function(...){abind(...,along = 3)}
 
 prob_outbreak_averted <- foreach(i=1:length(R0s),.combine = 'acomb',.multicombine=T) %:%
  foreach(j=1:length(epsilons1),.combine = 'cbind') %dopar% {
-   run_nm <- paste0(run_nms[i],"_SA_1_epsilon",j-1)
+   run_nm <- paste0(run_nms[i],"_SA",run_nm1,"_epsilon",j-1)
    run_simulations(R0s[i],w,Present,p_s,Risk,h,alpha,mu_p,mu_sx,nsims,N_res,N_staff,N_pop,
                    T_sim,epsilons1[j],r_E,p_E,r_p,p_p,r_sx,p_sx,p_h,p_ICU,p_d,mean_days_PCR_pos,
                    min_days_PCR_pos,max_days_PCR_pos,discrnorm,hospitalisation,sens,
                    spec,testing_days,interventions,max_PCR_tests_per_week,
                    min_days_btw_tests,entry_PCR_test_compliance,routine_PCR_test_compliance,
-                   sx_pos_PCR_test_compliance,mask_compliance,mask_eff,sens_sx,spec_sx,Number,
+                   sx_pos_PCR_test_compliance,mask_compliance,mask_eff_susc,mask_eff_inf,sens_sx,spec_sx,Number,
                    Resident,Age,res_present0,E0,run_nm)
    load(paste0("intvntn_sim_output",run_nm,".RData"))
    calc_prob_outbreak_averted(infections,bckgrnd_infections)
  }
 
-save(interventions,R0s,epsilons1,prob_outbreak_averted,file = "prob_outbreak_averted_SA_1_epsilon.RData")
+save(interventions,R0s,epsilons1,prob_outbreak_averted,file = paste0("prob_outbreak_averted_SA",run_nm1,"_epsilon.RData"))
 
-plot_epsilon_SA("prob_outbreak_averted_SA_1_epsilon.RData",run_nms,homeless_RR,R0lbls)
+plot_epsilon_SA(paste0("prob_outbreak_averted_SA",run_nm1,"_epsilon.RData"),run_nms,homeless_RR,R0lbls)
 
 # Run sensitivity analysis for probability of averting an outbreak under different PCR testing frequencies for each R0 value
 days_btw_tests <- c(1,3,7,10,14,21,30)
+run_nm2 <- "_11"
 
 prob_outbreak_averted1 <-
   foreach(i=1:length(R0s),.combine = 'cbind') %:%
     foreach(j=1:length(days_btw_tests),.combine = 'c') %dopar% {
-      run_nm <- paste0(run_nms[i],"_SA_6_PCR_testing_freq",j)
+      run_nm <- paste0(run_nms[i],"_SA",run_nm2,"_PCR_testing_freq",j)
       testing_days <- floor(seq(days_btw_tests[j],T_sim,by = days_btw_tests[j]))
       run_simulations(R0s[i],w,Present,p_s,Risk,h,alpha,mu_p,mu_sx,nsims,N_res,N_staff,N_pop,
                       T_sim,epsilons[2],r_E,p_E,r_p,p_p,r_sx,p_sx,p_h,p_ICU,p_d,mean_days_PCR_pos,
                       min_days_PCR_pos,max_days_PCR_pos,discrnorm,hospitalisation,sens,
                       spec,testing_days,interventions[c(1,3)],max_PCR_tests_per_week,
                       min_days_btw_tests,entry_PCR_test_compliance,routine_PCR_test_compliance,
-                      sx_pos_PCR_test_compliance,mask_compliance,mask_eff,sens_sx,spec_sx,Number,
+                      sx_pos_PCR_test_compliance,mask_compliance,mask_eff_susc,mask_eff_inf,sens_sx,spec_sx,Number,
                       Resident,Age,res_present0,E0,run_nm)
       load(paste0("intvntn_sim_output",run_nm,".RData"))
       calc_prob_outbreak_averted(infections,bckgrnd_infections)
 }
 
-save(R0s,days_btw_tests,prob_outbreak_averted1,file = "prob_outbreak_averted_SA_6_PCR_testing_freq.RData")
-plot_PCR_testing_freq_SA("prob_outbreak_averted_SA_6_PCR_testing_freq.RData","_6",R0lbls)
+save(R0s,days_btw_tests,prob_outbreak_averted1,file = paste0("prob_outbreak_averted_SA",run_nm2,"_PCR_testing_freq.RData"))
+plot_PCR_testing_freq_SA(paste0("prob_outbreak_averted_SA",run_nm2,"_PCR_testing_freq.RData"),run_nm2,R0lbls)

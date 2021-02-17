@@ -3,7 +3,7 @@ COVID_homeless_intervention_model<-function(N_res,N_staff,N_pop,T_sim,w,beta,eps
                                             max_days_PCR_pos,discrnorm,hospitalisation,sens,spec,
                                             testing_days,interventions,max_PCR_tests_per_week,min_days_btw_tests,
                                             entry_PCR_test_compliance,routine_PCR_test_compliance,
-                                            sx_pos_PCR_test_compliance,mask_compliance,mask_eff,sens_sx,spec_sx,
+                                            sx_pos_PCR_test_compliance,mask_compliance,mask_eff_susc,mask_eff_inf,sens_sx,spec_sx,
                                             Number,Resident,Present,Risk,Age,e0ind,TrueState,DayTrueState,
                                             WaitingTime,DaysSinceInfctn,DaysSinceInfctsnss,DaysPCRpos){
   
@@ -15,7 +15,7 @@ COVID_homeless_intervention_model<-function(N_res,N_staff,N_pop,T_sim,w,beta,eps
   
   # Mask wearing
   if (5 %in% interventions) {
-    beta <- (1-mask_compliance*mask_eff)*beta
+    beta <- (1-mask_compliance*mask_eff_susc)*(1-mask_compliance*mask_eff_inf)*beta
   }
   
   # Removal of high-risk individuals and replacement with low-risk individuals

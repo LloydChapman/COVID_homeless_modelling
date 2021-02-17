@@ -11,7 +11,7 @@ calc_beta <- function(R0,w,Present,p_s,Risk,h,alpha,mu_p,mu_sx){
 }
 
 calc_epsilon <- function(case_data,start_date,end_date,pop,underreporting,homeless_RR){
-  mean_daily_cases <- sum(case_data$Cases[case_data$Date>=start_date & case_data$Date<=end_date])/as.numeric(end_date-start_date+1) # mean of confirmed cases for period of interest
+  mean_daily_cases <- sum(case_data$Cases[case_data$Date>=start_date & case_data$Date<=end_date],na.rm = T)/as.numeric(end_date-start_date+1) # mean of confirmed cases for period of interest
   mean_daily_inc <- mean_daily_cases/pop
   epsilon <- mean_daily_inc*underreporting*homeless_RR # adjusted transmission rate outside shelter
   return(epsilon)

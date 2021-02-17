@@ -78,7 +78,7 @@ plot_PCR_testing_freq_SA <- function(fnm,run_nm,R0lbls){
   prob_outbreak_averted_melt$days_btw_tests <- days_btw_tests[prob_outbreak_averted_melt$Var1]
   
   pdf(paste0("prob_outbreak_averted_vs_PCR_testing_freq",run_nm,".pdf"), width = 6, height = 4)
-  print(ggplot(prob_outbreak_averted_melt,aes(x=days_btw_tests,y=value,group=as.factor(R0),color=as.factor(round(R0,1)))) + geom_point() + xlab("Frequency of testing (number of days between tests)") + ylab("Probability of averting outbreak") + ylim(0,1) + scale_color_discrete(name = "R0",labels = paste(round(R0s,1),R0lbls)) + theme_classic())
+  print(ggplot(prob_outbreak_averted_melt,aes(x=days_btw_tests,y=value,group=as.factor(R0),color=as.factor(round(R0,1)))) + geom_point() + xlab("Number of days between tests") + ylab("Probability of averting outbreak") + ylim(0,1) + scale_color_discrete(name = "R0",labels = paste(round(R0s,1),R0lbls)) + theme_classic())
   dev.off()
   
 }

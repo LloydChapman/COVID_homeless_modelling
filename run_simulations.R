@@ -3,7 +3,7 @@ run_simulations <- function(R0,w,Present,p_s,Risk,h,alpha,mu_p,mu_sx,nsims,N_res
                             min_days_PCR_pos,max_days_PCR_pos,discrnorm,hospitalisation,sens,
                             spec,testing_days,interventions,max_PCR_tests_per_week,
                             min_days_btw_tests,entry_PCR_test_compliance,routine_PCR_test_compliance,
-                            sx_pos_PCR_test_compliance,mask_compliance,mask_eff,sens_sx,spec_sx,Number,
+                            sx_pos_PCR_test_compliance,mask_compliance,mask_eff_susc,mask_eff_inf,sens_sx,spec_sx,Number,
                             Resident,Age,res_present0,E0,run_nm,dir=""){
   # Calculate beta
   beta <- calc_beta(R0,w,Present,p_s,Risk,h,alpha,mu_p,mu_sx)
@@ -56,7 +56,7 @@ run_simulations <- function(R0,w,Present,p_s,Risk,h,alpha,mu_p,mu_sx,nsims,N_res
                                                testing_days,interventions[[j]],max_PCR_tests_per_week,
                                                min_days_btw_tests,entry_PCR_test_compliance,
                                                routine_PCR_test_compliance,sx_pos_PCR_test_compliance,
-                                               mask_compliance,mask_eff,sens_sx,spec_sx,Number,Resident,Present,
+                                               mask_compliance,mask_eff_susc,mask_eff_inf,sens_sx,spec_sx,Number,Resident,Present,
                                                Risk,Age,e0ind,TrueState,DayTrueState,WaitingTime,DaysSinceInfctn,
                                                DaysSinceInfctsnss,DaysPCRpos)
       infections_res[i,,j] <- res$infections_res

@@ -34,7 +34,7 @@ interventions <- list(NULL,1,c(1,3),c(1,5),c(1,6),c(1,7),c(1,3,5,6))
 # Load CCMS data from MSC South outbreak
 CCMS_data <- read.csv("data/CCMS_data.csv",stringsAsFactors = F)
 names(CCMS_data)[1] <- "Date"
-CCMS_data$Date <- as.Date(CCMS_data$Date,format = "%d-%b")
+CCMS_data$Date <- as.Date(paste0(CCMS_data$Date,"-2020"),format = "%d-%b-%Y")
 # Remove empty rows from after Apr 10
 CCMS_data <- CCMS_data[CCMS_data$Date<=as.Date("04/10/2020",format="%m/%d/%Y"),]
 # Reformat names
@@ -154,8 +154,9 @@ parsSA$spec <- c(0.95,1)
 parsSA$routine_PCR_test_compliance <- c(0.5,1)
 
 # Masking
-parsSA$mask_eff <- c(0.1,0.5)
-parsSA$mask_compliance <- c(0.5,1)
+parsSA$mask_eff_susc <- c(0.2,0.6)
+parsSA$mask_eff_inf <- c(0.1,0.5)
+parsSA$mask_compliance <- c(0.3,1)
 
 lngths <- sapply(parsSA,length)
 
@@ -168,15 +169,18 @@ for (i in 1:length(parsSA)){
 colnames(pars) <- names(lngths)
 
 # Directory to save results in
-dir <- "sensitivity_analysis/"
+dir <- "sensitivity_analysis1/"
+dir.create(dir,recursive = T)
 
-# Base parameter values for processing results
-base_pars <- c(1,2,0.4,0.9,0.8,0.75,1,0.8,0.3,0.8)
-lbls <- c("subclinical relative infectiousness","early stage relative infectiousness","symptom screening sensitivity","symptom screening specificity","symptom-positive PCR test compliance","PCR sensitivity","PCR specificity","routine PCR test compliance","masking effectiveness","masking compliance")
+# Get base case parameter values for processing results
+source("set_nat_hist_pars.R")
+source("set_intvntn_pars.R")
+base_pars <- c(h,alpha,sens_sx[6],mean(spec_sx,na.rm=T),sx_pos_PCR_test_compliance,mean(sens,na.rm=T),mean(spec,na.rm=T),routine_PCR_test_compliance,mask_eff_susc,mask_eff_inf,mask_compliance)
+lbls <- c("subclinical relative infectiousness","early-stage relative infectiousness","symptom screening sensitivity","symptom screening specificity","symptom-positive PCR test compliance","PCR sensitivity","PCR specificity","routine PCR test compliance","masking effectiveness for susceptibles","masking effectiveness for infectious","masking compliance")
 
 # Run SA
 run_nms <- c("_lower_R0","_Seattle_A_R0","_Boston_R0","_SF_R0")
-run_nums <- c("_5","_10","_10","_10")
+run_nums <- c("_6","_11","_11","_11")
 ttls <- c("R0 = 1.5 (low-risk)","R0 = 2.9 (Seattle)","R0 = 3.9 (Boston)","R0 = 6.2 (SF)")
 for (j in 1:length(R0s)){
   # for (i in 1:nrow(pars)){#
@@ -192,7 +196,7 @@ for (j in 1:length(R0s)){
                                                              min_days_PCR_pos,max_days_PCR_pos,discrnorm,hospitalisation,sens,
                                                              spec,testing_days,interventions,max_PCR_tests_per_week,
                                                              min_days_btw_tests,entry_PCR_test_compliance,pars[i,"routine_PCR_test_compliance"],
-                                                             pars[i,"sx_pos_PCR_test_compliance"],pars[i,"mask_compliance"],pars[i,"mask_eff"],sens_sx,spec_sx,Number,
+                                                             pars[i,"sx_pos_PCR_test_compliance"],pars[i,"mask_compliance"],pars[i,"mask_eff_susc"],pars[i,"mask_eff_inf"],sens_sx,spec_sx,Number,
                                                              Resident,Age,res_present0,E0,run_nm,dir)
       load(paste0(dir,"intvntn_sim_output",run_nm,".RData"))
       calc_prob_outbreak_averted(infections,bckgrnd_infections)

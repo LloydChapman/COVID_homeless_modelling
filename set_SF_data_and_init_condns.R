@@ -1,7 +1,7 @@
 # Load CCMS data from MSC South outbreak
 CCMS_data <- read.csv("data/CCMS_data.csv",stringsAsFactors = F)
 names(CCMS_data)[1] <- "Date"
-CCMS_data$Date <- as.Date(CCMS_data$Date,format = "%d-%b")
+CCMS_data$Date <- as.Date(paste0(CCMS_data$Date,"-2020"),format = "%d-%b-%Y")
 # Remove empty rows from after Apr 10
 CCMS_data <- CCMS_data[CCMS_data$Date<=as.Date("04/10/2020",format="%m/%d/%Y"),]
 # Reformat names

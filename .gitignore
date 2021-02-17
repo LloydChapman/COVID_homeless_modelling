@@ -9,5 +9,5 @@
 *.RData
 .Ruserdata
 set_PCR_test_pars.R
-sensitivity_analysis/
+sensitivity_analysis*/
 old/

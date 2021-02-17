@@ -23,7 +23,8 @@ p_h <- c((0.021+0.025+0.035+0.077)/4,(0.159+0.262+0.446)/3,(0.044+0.054+0.075+0.
 
 p_ICU <- 0.261 # probability of ICU admission from Wang JAMA 2020
 # Vector of probabilities of death for hospitalised patients admitted to ICU by age-group and co-morbidity status for severe cases (rows: 1- under-60 & no co-morbidities, 2- 60+ & no co-morbidities, 3- under-60 & co-morbidities, 4- 60+ & co-morbidities)
-p_d <- c((20*0.17+10*0.23+10*0.31)/40,(0.41+0.55+0.60)/3,(20*0.45+10*0.60+10*0.81)/40,(1+1+1)/3) # Tuite CMAJ 2020
+RR_death_comorb <- 16/21/(16/31) # correction to RR of death from Tuite CMAJ 2020
+p_d <- c((20*0.17+10*0.23+10*0.31)/40,(0.41+0.55+0.60)/3,RR_death_comorb*(20*0.17+10*0.23+10*0.31)/40,RR_death_comorb*(0.41+0.55+0.60)/3) # Tuite CMAJ 2020
 
 # Construct discrete distribution for duration of PCR positivity
 mean_days_PCR_pos <- 20 # mean duration of PCR positivity following symptom onset based on viral shedding dynamics papers

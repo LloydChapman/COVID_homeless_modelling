@@ -6,7 +6,7 @@ CCMS_data <- NULL
 # SF CCMS data for proportions in different risk groups
 SF_CCMS_data <- read.csv("data/CCMS_data.csv",stringsAsFactors = F)
 names(SF_CCMS_data)[1] <- "Date"
-SF_CCMS_data$Date <- as.Date(SF_CCMS_data$Date,format = "%d-%b")
+SF_CCMS_data$Date <- as.Date(paste0(SF_CCMS_data$Date,"-2020"),format = "%d-%b-%Y")
 # Remove empty rows from after Apr 10
 SF_CCMS_data <- SF_CCMS_data[SF_CCMS_data$Date<=as.Date("04/10/2020",format="%m/%d/%Y"),]
 # Reformat names
